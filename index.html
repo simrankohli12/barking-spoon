@@ -329,8 +329,8 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
           <div id="plan-prots"></div>
         </div>
         <div class="card mt16">
-          <div class="slabel mb8">Meal Schedule</div>
-          <div id="meal-sched" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
+          <div class="slabel mb8">Meal Breakdown — Ingredients</div>
+          <div id="meal-sched"></div>
         </div>
       </div>
       <div class="card">
@@ -1217,14 +1217,79 @@ function renderDiet(){
 
   renderPlanProts(curTier);
 
-  // Meal schedule
-  const mls=['Breakfast','Midday','Dinner','Evening'];
-  document.getElementById('meal-sched').innerHTML=Array.from({length:calc.meals},(_,i)=>
-    `<div style="background:var(--ap);border:1px solid #f5d5a8;border-radius:10px;padding:12px 16px;text-align:center;min-width:95px;">
-      <div style="font-size:11px;color:var(--am);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">${mls[i]}</div>
-      <div style="font-size:20px;font-weight:600;margin-top:4px;">${calc.perMeal}g</div>
-      <div style="font-size:11px;color:var(--tm);margin-top:2px;">grams</div>
-    </div>`).join('');
+  // Meal ingredient breakdown
+  const mealNames = ['Breakfast','Midday','Dinner','Evening'];
+  const prots = (A.pricing[curTier]?.p||'').split(',').map(x=>x.trim()).filter(Boolean);
+
+  // Map diet components to ingredient categories
+  function mealIngredients(mealG, mealIndex) {
+    const rows = [];
+    // Primary protein — rotate through plan proteins across meals
+    const protForMeal = prots.length ? prots[mealIndex % prots.length] : 'Protein';
+
+    if (dog.diet === 'raw') {
+      rows.push({ cat: '🥩 Muscle Meat',   ing: protForMeal,                  g: Math.round(mealG * 0.70) });
+      rows.push({ cat: '🦴 Raw Meaty Bone', ing: `${protForMeal} RMB`,        g: Math.round(mealG * 0.10) });
+      rows.push({ cat: '🫀 Liver',           ing: 'Chicken or Goat liver',     g: Math.round(mealG * 0.05) });
+      rows.push({ cat: '🧬 Secreting Organ', ing: 'Kidney / Spleen',           g: Math.round(mealG * 0.05) });
+      rows.push({ cat: '🥦 Vegetables',      ing: 'Leafy greens + root veg',   g: Math.round(mealG * 0.07) });
+      rows.push({ cat: '✨ Toppers',          ing: 'Eggs / Seeds / Kelp',       g: Math.round(mealG * 0.03), topper: true });
+    } else if (dog.diet === 'cooked') {
+      rows.push({ cat: '🥩 Protein',         ing: `${protForMeal} (cooked)`,   g: Math.round(mealG * 0.55) });
+      rows.push({ cat: '🌾 Carbohydrates',   ing: 'Rice / Millet / Sweet potato', g: Math.round(mealG * 0.20) });
+      rows.push({ cat: '🦴 Calcium Source',  ing: 'Eggshell powder',           g: Math.round(mealG * 0.10) });
+      rows.push({ cat: '🥦 Vegetables',      ing: 'Steamed mixed veg',         g: Math.round(mealG * 0.12) });
+      rows.push({ cat: '✨ Toppers',          ing: 'Fish oil / Coconut oil',    g: Math.round(mealG * 0.03), topper: true });
+    } else {
+      rows.push({ cat: '🥩 Raw Protein',     ing: `${protForMeal} (raw)`,      g: Math.round(mealG * 0.45) });
+      rows.push({ cat: '🍳 Cooked Protein',  ing: `${protForMeal} (cooked)`,   g: Math.round(mealG * 0.20) });
+      rows.push({ cat: '🦴 Bone/Calcium',    ing: 'RMB or eggshell powder',    g: Math.round(mealG * 0.10) });
+      rows.push({ cat: '🫀 Organ Meat',       ing: 'Liver / Kidney',            g: Math.round(mealG * 0.08) });
+      rows.push({ cat: '🥦 Carbs + Veg',     ing: 'Veg + small grain portion', g: Math.round(mealG * 0.14) });
+      rows.push({ cat: '✨ Toppers',          ing: 'Fish oil / Eggs',           g: Math.round(mealG * 0.03), topper: true });
+    }
+    // Allergen filter
+    if (dog.allrg) {
+      const allrgs = dog.allrg.toLowerCase().split(/[,\/]/);
+      rows.forEach(r => {
+        if (allrgs.some(a => r.ing.toLowerCase().includes(a.trim()))) {
+          r.flagged = true;
+        }
+      });
+    }
+    return rows;
+  }
+
+  const mealCards = Array.from({length: calc.meals}, (_, i) => {
+    const ingredients = mealIngredients(calc.perMeal, i);
+    const rows = ingredients.map(r => {
+      const flagStyle = r.flagged ? 'color:var(--rd);text-decoration:line-through;' : '';
+      const flag = r.flagged ? ' ⚠' : '';
+      if (r.topper) {
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px dashed var(--bd);margin-top:4px;">
+          <div style="color:var(--gl);font-size:12px;${flagStyle}">${r.cat} <span style="color:var(--tl);font-weight:400;">${r.ing}${flag}</span></div>
+          <div style="font-size:12px;color:var(--gl);font-weight:600;">${r.g}g</div>
+        </div>`;
+      }
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd);">
+        <div style="${flagStyle}">
+          <div style="font-size:12px;color:var(--tl);">${r.cat}</div>
+          <div style="font-size:13px;font-weight:500;color:var(--tx);">${r.ing}${flag}</div>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:var(--gd);margin-left:12px;">${r.g}g</div>
+      </div>`;
+    }).join('');
+
+    return `<div style="background:var(--cream);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:700;color:var(--am);text-transform:uppercase;letter-spacing:.7px;">${mealNames[i]}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--gd);">${calc.perMeal}g total</div>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  document.getElementById('meal-sched').innerHTML = mealCards;
 
   // Supplements — from nutrition.js
   const supps = getSupplements(dog);
