@@ -613,27 +613,36 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 <!-- =========== TAB 4: DELIVERY =========== -->
 <div class="panel" id="tab-delivery">
   <div class="phead">
-    <div><div class="ptitle">Delivery Tracker</div><div class="psub">Mark daily deliveries & manage plan renewals</div></div>
+    <div><div class="ptitle">Delivery Tracker</div><div class="psub">Track by 30-day cycle from client start date</div></div>
     <select id="del-sel" onchange="renderCal()" style="width:210px;"><option value="">— Select a dog —</option></select>
   </div>
-  <div id="del-empty" class="empty"><div class="ei">📅</div><p>Select a dog to track deliveries</p></div>
+  <div id="del-empty" class="empty">
+    <div class="ei">📅</div>
+    <p>Select a dog to track deliveries</p>
+  </div>
   <div id="del-content" style="display:none;">
     <div class="g2">
       <div class="card">
+        <!-- Cycle navigation -->
         <div class="fb mb12">
           <div>
             <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--gd);" id="cal-title"></div>
             <div style="font-size:12px;color:var(--tm);" id="cal-count"></div>
           </div>
           <div class="fc g8r">
-            <button class="btn bg bsm" onclick="changeMonth(-1)">‹ Prev</button>
-            <button class="btn bg bsm" onclick="changeMonth(1)">Next ›</button>
+            <button class="btn bg bsm" onclick="changeCycle(-1)">‹ Prev Cycle</button>
+            <button class="btn bg bsm" onclick="changeCycle(1)">Next Cycle ›</button>
           </div>
+        </div>
+        <!-- No start date warning -->
+        <div id="no-start-warning" style="display:none;background:var(--ap);border:1px solid #f5d5a8;border-radius:8px;padding:12px 14px;font-size:13px;color:var(--am);margin-bottom:12px;">
+          ⚠️ Set a <b>Start Date</b> in the panel on the right to enable cycle tracking.
         </div>
         <div class="cal-grid" id="cal-grid"></div>
         <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:var(--tm);">
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:var(--gm);display:inline-block;"></span>Delivered</span>
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:var(--cream);border:1px solid var(--bd);display:inline-block;"></span>Not delivered</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:var(--bp);border:1px solid var(--bl);display:inline-block;"></span>Today</span>
         </div>
       </div>
       <div>
@@ -641,15 +650,22 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
           <div class="slabel mb8">Client Info</div>
           <div id="del-info"></div>
           <div class="div"></div>
-          <div class="slabel mb8">Plan Renewal</div>
+          <div class="slabel mb8">Plan Details</div>
           <div class="g2">
-            <div class="fg"><label class="fl">Start date</label><input type="date" id="pln-start" onchange="saveRenewal()"></div>
-            <div class="fg"><label class="fl">End date</label><input type="date" id="pln-end" onchange="saveRenewal()"></div>
+            <div class="fg">
+              <label class="fl">Start Date</label>
+              <input type="date" id="pln-start" onchange="saveRenewal()">
+              <div style="font-size:11px;color:var(--tl);margin-top:3px;">Cycle 1 begins here</div>
+            </div>
+            <div class="fg">
+              <label class="fl">End Date</label>
+              <input type="date" id="pln-end" onchange="saveRenewal()">
+            </div>
           </div>
           <div id="ren-status" class="note mt12" style="display:none;"></div>
         </div>
         <div class="card mt12">
-          <div class="slabel mb8">Monthly Summary</div>
+          <div class="slabel mb8">Cycle Summary</div>
           <div id="del-summary"></div>
         </div>
       </div>
@@ -2206,48 +2222,164 @@ function addFixedRow(){}
 function updateFixedRow(){}
 function removeFixedRow(){}
 function updateCostRow(){}
-function renderCal(){
-  const dogId=document.getElementById('del-sel').value;
-  const dog=A.dogs.find(d=>d.id===dogId);
-  document.getElementById('del-empty').style.display=dog?'none':'block';
-  document.getElementById('del-content').style.display=dog?'block':'none';
-  if(!dog)return;
-  curDelId=dogId;
-  const mKey=`${calY}-${String(calM+1).padStart(2,'0')}`;
-  const delivs=((A.deliveries[dogId]||{})[mKey])||{};
-  const today=new Date();
-  const firstDay=new Date(calY,calM,1).getDay();
-  const days=new Date(calY,calM+1,0).getDate();
-  const mNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  document.getElementById('cal-title').textContent=`${mNames[calM]} ${calY}`;
-  const dc=Object.values(delivs).filter(Boolean).length;
-  document.getElementById('cal-count').textContent=`${dc} delivered this month`;
+// ========= DELIVERY TRACKER (30-day cycle based) =========
 
-  let html=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="cdl">${d}</div>`).join('');
-  for(let i=0;i<firstDay;i++)html+=`<div class="cd em"></div>`;
+let curCycle = 0; // 0 = current cycle
+
+// Helper: format date as YYYY-MM-DD
+function dateKey(d) {
+  return d.toISOString().split('T')[0];
+}
+
+// Helper: add days to a date
+function addDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+// Helper: short date label e.g. "15 Mar"
+function shortDate(d) {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${d.getDate()} ${months[d.getMonth()]}`;
+}
+
+function renderCal() {
+  const dogId = document.getElementById('del-sel').value;
+  const dog   = A.dogs.find(d => d.id === dogId);
+  document.getElementById('del-empty').style.display  = dog ? 'none' : 'block';
+  document.getElementById('del-content').style.display = dog ? 'block' : 'none';
+  if (!dog) return;
+  if (curDelId !== dogId) curCycle = 0; // reset cycle when switching dogs
+  curDelId = dogId;
+
+  const ren       = A.renewals[dogId] || {};
+  const today     = new Date(); today.setHours(0,0,0,0);
+  const hasStart  = !!ren.start;
+  const noWarn    = document.getElementById('no-start-warning');
+
+  // If no start date — show warning and fall back to showing today's calendar month
+  noWarn.style.display = hasStart ? 'none' : 'block';
+
+  if (!hasStart) {
+    // Fallback: show current calendar month (old behaviour)
+    renderCalendarMonth(dog, ren, today);
+    renderClientInfo(dog, ren, today);
+    return;
+  }
+
+  // ── CYCLE-BASED RENDERING ──
+  const startDate = new Date(ren.start + 'T00:00:00');
+
+  // Work out which cycle we're currently viewing
+  // curCycle 0 = cycle containing today (or most recent cycle)
+  // Navigate forward/back from there
+  const daysSinceStart = Math.floor((today - startDate) / (1000*60*60*24));
+  const currentCycleIndex = Math.max(0, Math.floor(daysSinceStart / 30));
+  const viewingCycleIndex = currentCycleIndex + curCycle;
+
+  if (viewingCycleIndex < 0) { curCycle++; renderCal(); return; }
+
+  const cycleStart = addDays(startDate, viewingCycleIndex * 30);
+  const cycleEnd   = addDays(cycleStart, 29);
+
+  // Title
+  document.getElementById('cal-title').textContent =
+    `Cycle ${viewingCycleIndex + 1} — ${shortDate(cycleStart)} to ${shortDate(cycleEnd)}`;
+
+  // Count delivered in this cycle
+  const delivs = A.deliveries[dogId] || {};
+  let deliveredCount = 0;
+  for (let i = 0; i < 30; i++) {
+    const d = addDays(cycleStart, i);
+    if (delivs[dateKey(d)]) deliveredCount++;
+  }
+  document.getElementById('cal-count').textContent =
+    `${deliveredCount}/30 delivered this cycle`;
+
+  // Build grid — 30 days starting from cycleStart's weekday
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let html = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div class="cdl">${d}</div>`).join('');
+
+  // Empty cells before first day
+  const startDow = cycleStart.getDay();
+  for (let i = 0; i < startDow; i++) html += `<div class="cd em"></div>`;
+
+  for (let i = 0; i < 30; i++) {
+    const d    = addDays(cycleStart, i);
+    const dKey = dateKey(d);
+    const isToday  = dKey === dateKey(today);
+    const isFuture = d > today;
+    const isDel    = !!delivs[dKey];
+    const isNewMonth = i === 0 || d.getDate() === 1;
+
+    let cls = 'cd';
+    if (isDel)      cls += ' dv';
+    else if (isToday) cls += ' td';
+    else if (isFuture) cls += ' ft';
+
+    // Show day number + month name when month changes
+    const label = isNewMonth
+      ? `<span style="font-size:9px;display:block;line-height:1;">${months[d.getMonth()]}</span>${d.getDate()}`
+      : d.getDate();
+
+    const onclick = isFuture ? '' : `onclick="toggleDel('${dKey}')"`;
+    html += `<div class="${cls}" ${onclick} title="Day ${i+1} — ${shortDate(d)}">${label}${isDel?' ✓':''}</div>`;
+  }
+
+  document.getElementById('cal-grid').innerHTML = html;
+  renderClientInfo(dog, ren, today);
+
+  // Cycle summary
+  const remaining = 30 - deliveredCount;
+  const pct = Math.round(deliveredCount / 30 * 100);
+  const dayInCycle = Math.min(30, Math.max(0, Math.floor((today - cycleStart) / (1000*60*60*24)) + 1));
+  document.getElementById('del-summary').innerHTML = `
+    <div class="br"><div style="color:var(--tm)">Cycle</div><div style="font-weight:600">${viewingCycleIndex + 1} of ${currentCycleIndex + 1}</div></div>
+    <div class="br"><div style="color:var(--tm)">Cycle period</div><div style="font-weight:600">${shortDate(cycleStart)} – ${shortDate(cycleEnd)}</div></div>
+    <div class="br"><div style="color:var(--tm)">Day in cycle</div><div style="font-weight:600">${dayInCycle > 0 && viewingCycleIndex === currentCycleIndex ? 'Day ' + dayInCycle : '—'}</div></div>
+    <div class="br"><div style="color:var(--tm)">Delivered</div><div style="font-weight:600;color:var(--gm)">${deliveredCount}</div></div>
+    <div class="br"><div style="color:var(--tm)">Remaining</div><div style="font-weight:600;color:var(--rd)">${remaining}</div></div>
+    <div class="br"><div style="color:var(--tm)">Completion</div><div style="font-weight:600">${pct}%</div></div>`;
+}
+
+function renderCalendarMonth(dog, ren, today) {
+  // Fallback for when no start date set — show current calendar month
+  const mNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
+  const days     = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const mKey     = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const delivs   = (A.deliveries[dog.id]||{})[mKey] || {};
+  document.getElementById('cal-title').textContent = `${mNames[today.getMonth()]} ${today.getFullYear()}`;
+  const dc = Object.values(delivs).filter(Boolean).length;
+  document.getElementById('cal-count').textContent = `${dc} delivered · set a start date for cycle view`;
+  let html = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="cdl">${d}</div>`).join('');
+  for(let i=0;i<firstDay;i++) html+=`<div class="cd em"></div>`;
   for(let d=1;d<=days;d++){
-    const isT=(d===today.getDate()&&calM===today.getMonth()&&calY===today.getFullYear());
-    const isFt=new Date(calY,calM,d)>today;
+    const isT=(d===today.getDate());
+    const isFt=new Date(today.getFullYear(),today.getMonth(),d)>today;
     const isDv=delivs[d];
     let cls='cd';
-    if(isDv)cls+=' dv';
-    else if(isT)cls+=' td';
-    else if(isFt)cls+=' ft';
-    html+=`<div class="${cls}" onclick="${isFt?'':` toggleDel(${d})`}">${d}${isDv?' ✓':''}</div>`;
+    if(isDv)cls+=' dv';else if(isT)cls+=' td';else if(isFt)cls+=' ft';
+    html+=`<div class="${cls}" onclick="${isFt?'':` toggleDelLegacy(${d},'${mKey}')`}">${d}${isDv?' ✓':''}</div>`;
   }
-  document.getElementById('cal-grid').innerHTML=html;
+  document.getElementById('cal-grid').innerHTML = html;
+  document.getElementById('del-summary').innerHTML = `
+    <div class="br"><div style="color:var(--tm)">Days in month</div><div style="font-weight:600">${days}</div></div>
+    <div class="br"><div style="color:var(--tm)">Delivered</div><div style="font-weight:600;color:var(--gm)">${dc}</div></div>
+    <div class="br"><div style="color:var(--tm)">Remaining</div><div style="font-weight:600;color:var(--rd)">${days-dc}</div></div>`;
+}
 
-  // Plan info
-  const ren=A.renewals[dogId]||{};
-  const pName=ren.plan?{basic:'🌱 Foundational',premium:'⚖️ Balanced',elite:'🎯 Functional'}[ren.plan]:'—';
-  const price=ren.plan&&A.pricing[ren.plan]?.price?'₹'+parseInt(A.pricing[ren.plan].price).toLocaleString('en-IN')+'/mo':'—';
+function renderClientInfo(dog, ren, today) {
+  const pName = ren.plan ? {basic:'🌱 Foundational',premium:'⚖️ Balanced',elite:'🎯 Functional'}[ren.plan] : '—';
+  const price  = ren.plan && A.pricing[ren.plan]?.price ? '₹'+parseInt(A.pricing[ren.plan].price).toLocaleString('en-IN')+'/mo' : '—';
   document.getElementById('del-info').innerHTML=`
     <div class="br"><div style="color:var(--tm)">Dog</div><div style="font-weight:600">${dog.name}</div></div>
     <div class="br"><div style="color:var(--tm)">Owner</div><div style="font-weight:600">${dog.owner||'—'}</div></div>
     <div class="br"><div style="color:var(--tm)">Phone</div><div>${dog.phone||'—'}</div></div>
     <div class="br"><div style="color:var(--tm)">Address</div><div>${dog.addr||'—'}</div></div>
     <div class="br"><div style="color:var(--tm)">Plan</div><div>
-      <select onchange="setDogPlan('${dogId}',this.value)" style="border:none;background:none;font-weight:600;color:var(--gm);padding:0;font-size:13px;cursor:pointer;">
+      <select onchange="setDogPlan('${dog.id}',this.value)" style="border:none;background:none;font-weight:600;color:var(--gm);padding:0;font-size:13px;cursor:pointer;">
         <option value="">—</option>
         <option value="basic"${ren.plan==='basic'?' selected':''}>🌱 Foundational</option>
         <option value="premium"${ren.plan==='premium'?' selected':''}>⚖️ Balanced</option>
@@ -2256,49 +2388,55 @@ function renderCal(){
     </div></div>
     <div class="br"><div style="color:var(--tm)">Monthly fee</div><div style="font-weight:600;color:var(--gm)">${price}</div></div>`;
 
-  if(ren.start)document.getElementById('pln-start').value=ren.start;
-  if(ren.end)document.getElementById('pln-end').value=ren.end;
+  if(ren.start) document.getElementById('pln-start').value = ren.start;
+  if(ren.end)   document.getElementById('pln-end').value   = ren.end;
 
-  // Renewal alert
-  const rs=document.getElementById('ren-status');
+  const rs = document.getElementById('ren-status');
   if(ren.end){
-    const dl=Math.ceil((new Date(ren.end)-today)/(1000*60*60*24));
+    const dl = Math.ceil((new Date(ren.end) - today)/(1000*60*60*24));
     rs.style.display='flex';
-    if(dl<0){rs.innerHTML=`<span class="ni">⚠️</span>Plan expired ${Math.abs(dl)} day${Math.abs(dl)!==1?'s':''} ago — contact ${dog.owner||'owner'} for renewal.`;rs.style.borderColor='#f5c2c2';}
-    else if(dl<=7){rs.innerHTML=`<span class="ni">🔔</span>Renews in ${dl} day${dl!==1?'s':''} — send a reminder to ${dog.owner||'the owner'}.`;rs.style.borderColor='#f5d5a8';}
-    else{rs.innerHTML=`<span class="ni">✅</span>Plan active — ${dl} days remaining.`;rs.style.borderColor='#a8d5b5';}
-  }else rs.style.display='none';
-
-  // Summary
-  const pct=Math.round(dc/days*100);
-  document.getElementById('del-summary').innerHTML=`
-    <div class="br"><div style="color:var(--tm)">Days in month</div><div style="font-weight:600">${days}</div></div>
-    <div class="br"><div style="color:var(--tm)">Delivered</div><div style="font-weight:600;color:var(--gm)">${dc}</div></div>
-    <div class="br"><div style="color:var(--tm)">Remaining</div><div style="font-weight:600;color:var(--rd)">${days-dc}</div></div>
-    <div class="br"><div style="color:var(--tm)">Completion</div><div style="font-weight:600">${pct}%</div></div>`;
+    if(dl<0){ rs.innerHTML=`<span class="ni">⚠️</span>Plan expired ${Math.abs(dl)} day${Math.abs(dl)!==1?'s':''} ago — contact ${dog.owner||'owner'} for renewal.`;rs.style.borderColor='#f5c2c2';}
+    else if(dl<=7){ rs.innerHTML=`<span class="ni">🔔</span>Renews in ${dl} day${dl!==1?'s':''} — send a reminder.`;rs.style.borderColor='#f5d5a8';}
+    else{ rs.innerHTML=`<span class="ni">✅</span>Plan active — ${dl} days remaining.`;rs.style.borderColor='#a8d5b5';}
+  } else rs.style.display='none';
 }
 
-function toggleDel(day){
-  if(!curDelId)return;
-  const mKey=`${calY}-${String(calM+1).padStart(2,'0')}`;
-  if(!A.deliveries[curDelId])A.deliveries[curDelId]={};
-  if(!A.deliveries[curDelId][mKey])A.deliveries[curDelId][mKey]={};
-  A.deliveries[curDelId][mKey][day]=!A.deliveries[curDelId][mKey][day];
-  sv();renderCal();
+function toggleDel(dKey) {
+  // New: toggle by absolute date key YYYY-MM-DD
+  if (!curDelId) return;
+  if (!A.deliveries[curDelId]) A.deliveries[curDelId] = {};
+  A.deliveries[curDelId][dKey] = !A.deliveries[curDelId][dKey];
+  sv(); renderCal();
 }
-function changeMonth(d){
-  calM+=d;if(calM>11){calM=0;calY++;}if(calM<0){calM=11;calY--;}renderCal();
+
+function toggleDelLegacy(day, mKey) {
+  // Old: legacy month-based toggle for when no start date set
+  if (!curDelId) return;
+  if (!A.deliveries[curDelId]) A.deliveries[curDelId] = {};
+  if (!A.deliveries[curDelId][mKey]) A.deliveries[curDelId][mKey] = {};
+  A.deliveries[curDelId][mKey][day] = !A.deliveries[curDelId][mKey][day];
+  sv(); renderCal();
 }
+
+function changeCycle(dir) {
+  curCycle += dir;
+  renderCal();
+}
+
+// Keep old changeMonth as alias in case referenced elsewhere
+function changeMonth(d) { changeCycle(d); }
+
 function saveRenewal(){
   if(!curDelId)return;
   if(!A.renewals[curDelId])A.renewals[curDelId]={};
   A.renewals[curDelId].start=document.getElementById('pln-start').value;
   A.renewals[curDelId].end=document.getElementById('pln-end').value;
-  sv();renderCal();
+  curCycle = 0; // reset to current cycle when start date changes
+  sv(); renderCal();
 }
 function setDogPlan(dogId,plan){
   if(!A.renewals[dogId])A.renewals[dogId]={};
-  A.renewals[dogId].plan=plan;sv();renderCal();
+  A.renewals[dogId].plan=plan; sv(); renderCal();
 }
 
 // ========= WEEKEND FEAST =========
