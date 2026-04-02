@@ -349,64 +349,29 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 <!-- =========== TAB 3: PRICING =========== -->
 <div class="panel" id="tab-pricing">
   <div class="phead">
-    <div><div class="ptitle">Plans & Pricing</div><div class="psub">Configure your 3-tier offerings for pet parents</div></div>
-    <button class="btn bp" onclick="savePricing()">Save</button>
+    <div><div class="ptitle">Plans & Pricing</div><div class="psub">Configure ingredients, costs, and plan offerings</div></div>
+    <button class="btn bp" onclick="savePricing()">💾 Save All</button>
   </div>
-  <div class="pgrid">
-    <div class="pc">
-      <div class="pname">🌿 Basic</div>
-      <div class="ptag">1 protein · Essential nutrition</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px;">
-        <span style="font-size:16px;color:var(--tm);">₹</span>
-        <input type="number" id="pr-basic" placeholder="e.g. 4500" style="width:130px;font-size:18px;font-weight:600;color:var(--gm);" oninput="autosavePricing()">
-        <span style="font-size:12px;color:var(--tl);">/month</span>
-      </div>
-      <ul class="pfeats"><li>1 protein source</li><li>BARF ratio meals</li><li>Core supplements</li><li>Meal plan PDF</li><li>Daily delivery</li></ul>
-      <div style="margin-top:14px;">
-        <div class="slabel mb8">Protein</div>
-        <input type="text" id="prot-basic" placeholder="e.g. Chicken" list="prot-list" oninput="autosavePricing()">
-      </div>
-    </div>
-    <div class="pc ft">
-      <div class="pbadge">Most Popular</div>
-      <div class="pname">⭐ Premium</div>
-      <div class="ptag">2 proteins · Better variety</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px;">
-        <span style="font-size:16px;color:var(--tm);">₹</span>
-        <input type="number" id="pr-premium" placeholder="e.g. 6500" style="width:130px;font-size:18px;font-weight:600;color:var(--gm);" oninput="autosavePricing()">
-        <span style="font-size:12px;color:var(--tl);">/month</span>
-      </div>
-      <ul class="pfeats"><li>2 proteins (rotation)</li><li>BARF ratio meals</li><li>Core + gut supplements</li><li>Meal plan PDF</li><li>Daily delivery</li><li>Monthly check-in</li></ul>
-      <div style="margin-top:14px;">
-        <div class="slabel mb8">Proteins (comma-separated)</div>
-        <input type="text" id="prot-premium" placeholder="e.g. Chicken, Goat" list="prot-list" oninput="autosavePricing()">
-      </div>
-    </div>
-    <div class="pc">
-      <div class="pname">👑 Elite</div>
-      <div class="ptag">3 proteins · Full rotation</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px;">
-        <span style="font-size:16px;color:var(--tm);">₹</span>
-        <input type="number" id="pr-elite" placeholder="e.g. 9500" style="width:130px;font-size:18px;font-weight:600;color:var(--gm);" oninput="autosavePricing()">
-        <span style="font-size:12px;color:var(--tl);">/month</span>
-      </div>
-      <ul class="pfeats"><li>3 proteins (full rotation)</li><li>BARF ratio meals</li><li>Full supplement stack</li><li>Meal plan PDF</li><li>Daily delivery</li><li>Weekly check-in + adjustments</li><li>Priority support</li></ul>
-      <div style="margin-top:14px;">
-        <div class="slabel mb8">Proteins (comma-separated)</div>
-        <input type="text" id="prot-elite" placeholder="e.g. Chicken, Goat, Fish" list="prot-list" oninput="autosavePricing()">
-      </div>
-    </div>
-  </div>
-  <datalist id="prot-list">
-    <option value="Chicken"><option value="Goat (Mutton)"><option value="Lamb"><option value="Fish (Surmai)"><option value="Fish (Rawas)">
-    <option value="Fish (Pomfret)"><option value="Eggs"><option value="Turkey"><option value="Rabbit"><option value="Duck">
-    <option value="Pork"><option value="Beef (for non-veg restrictions)">
-  </datalist>
 
-  <div class="card mt24">
-    <div class="slabel mb12">Client-Facing Preview</div>
-    <div class="pgrid" id="pricing-preview"></div>
+  <!-- SECTION A: INGREDIENT COST LIBRARY -->
+  <div class="slabel mb8">Ingredient Cost Library</div>
+  <div class="card mb12">
+    <div style="font-size:13px;color:var(--tm);margin-bottom:14px;">Your ingredient costs per kg — used to understand your cost structure across plans.</div>
+    <div id="ingr-table">
+      <!-- rendered by JS -->
+    </div>
+    <button class="btn bo bsm mt12" onclick="addIngredient()">+ Add Ingredient</button>
   </div>
+
+  <!-- SECTION B: PLAN CONFIGURATION -->
+  <div class="slabel mb8">Plan Configuration</div>
+  <div class="pgrid" id="plan-config-grid">
+    <!-- rendered by JS -->
+  </div>
+
+  <!-- SECTION C: CLIENT-FACING PREVIEW -->
+  <div class="slabel mt24 mb8">Client-Facing Preview</div>
+  <div class="pgrid" id="pricing-preview"></div>
 </div>
 
 <!-- =========== TAB 4: DELIVERY =========== -->
@@ -887,7 +852,7 @@ if (localStorage.getItem('tbs_auth') === '1') {
 }
 
 // ========= STATE =========
-let A = { dogs:[], pricing:{basic:{price:'',p:'Chicken'},premium:{price:'',p:'Chicken, Goat'},elite:{price:'',p:'Chicken, Goat, Fish'}}, deliveries:{}, renewals:{}, feast:[] };
+let A = { dogs:[], pricing:{basic:{price:'',p:'Chicken'},premium:{price:'',p:'Chicken, Goat'},elite:{price:'',p:'Chicken, Goat, Fish'}}, deliveries:{}, renewals:{}, feast:[], ingredients:[], planFeatures:null };
 let curDog=null, curTier='basic', calY=new Date().getFullYear(), calM=new Date().getMonth(), curDelId=null, fFilter='all', feastEditId=null;
 
 // ========= FIREBASE =========
@@ -1325,38 +1290,221 @@ function renderPlanProts(tier){
 }
 
 // ========= PRICING =========
-function loadPricing(){
-  document.getElementById('pr-basic').value=A.pricing.basic.price||'';
-  document.getElementById('pr-premium').value=A.pricing.premium.price||'';
-  document.getElementById('pr-elite').value=A.pricing.elite.price||'';
-  document.getElementById('prot-basic').value=A.pricing.basic.p||'Chicken';
-  document.getElementById('prot-premium').value=A.pricing.premium.p||'Chicken, Goat';
-  document.getElementById('prot-elite').value=A.pricing.elite.p||'Chicken, Goat, Fish';
+
+const DEFAULT_INGREDIENTS = [
+  { name: 'Chicken', costPerKg: 180 },
+  { name: 'Goat (Mutton)', costPerKg: 350 },
+  { name: 'Fish (Surmai)', costPerKg: 400 },
+  { name: 'Fish (Rawas)', costPerKg: 300 },
+  { name: 'Eggs', costPerKg: 120 },
+  { name: 'Liver (Chicken)', costPerKg: 100 },
+  { name: 'Liver (Goat)', costPerKg: 180 },
+  { name: 'Kidney / Spleen', costPerKg: 120 },
+  { name: 'Vegetables (mixed)', costPerKg: 60 },
+  { name: 'Kelp Powder', costPerKg: 800 },
+  { name: 'Eggshell Powder', costPerKg: 200 },
+];
+
+const DEFAULT_PLAN_FEATURES = {
+  basic: {
+    tagline: '1 protein · Essential whole-food nutrition',
+    features: ['1 protein source (rotation within protein)', 'BARF / home-cooked ratio meals', 'Core supplement protocol', 'Personalised meal plan PDF', 'Daily delivery']
+  },
+  premium: {
+    tagline: '2 proteins · Better variety & balance',
+    features: ['2 proteins (weekly rotation)', 'BARF / home-cooked ratio meals', 'Core + gut supplement protocol', 'Personalised meal plan PDF', 'Daily delivery', 'Monthly nutrition check-in']
+  },
+  elite: {
+    tagline: '3 proteins · Full rotation & complete support',
+    features: ['3 proteins (full rotation schedule)', 'BARF / home-cooked ratio meals', 'Complete supplement stack', 'Personalised meal plan PDF', 'Daily delivery', 'Weekly check-in + adjustments', 'Priority WhatsApp support']
+  }
+};
+
+function loadPricing() {
+  // Ensure ingredients and plan features are initialised
+  if (!A.ingredients || !A.ingredients.length) A.ingredients = JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
+  if (!A.planFeatures) A.planFeatures = JSON.parse(JSON.stringify(DEFAULT_PLAN_FEATURES));
+  // Legacy: ensure pricing structure exists
+  if (!A.pricing) A.pricing = { basic:{price:'',p:'Chicken'}, premium:{price:'',p:'Chicken, Goat'}, elite:{price:'',p:'Chicken, Goat, Fish'} };
+  renderIngredientTable();
+  renderPlanConfigGrid();
+  updatePricingPreview();
 }
-function autosavePricing(){
-  A.pricing={
-    basic:{price:document.getElementById('pr-basic').value,p:document.getElementById('prot-basic').value},
-    premium:{price:document.getElementById('pr-premium').value,p:document.getElementById('prot-premium').value},
-    elite:{price:document.getElementById('pr-elite').value,p:document.getElementById('prot-elite').value}
-  };sv();updatePricingPreview();
+
+function renderIngredientTable() {
+  const ingrs = A.ingredients || [];
+  document.getElementById('ingr-table').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 160px 40px;gap:8px;align-items:center;margin-bottom:6px;">
+      <div class="fl">Ingredient</div>
+      <div class="fl">Cost per kg (₹)</div>
+      <div></div>
+    </div>
+    ${ingrs.map((ing, i) => `
+    <div style="display:grid;grid-template-columns:1fr 160px 40px;gap:8px;align-items:center;margin-bottom:6px;">
+      <input type="text" value="${ing.name}" placeholder="e.g. Chicken"
+        style="font-size:13px;" oninput="updateIngredient(${i},'name',this.value)">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-size:13px;color:var(--tm);">₹</span>
+        <input type="number" value="${ing.costPerKg||''}" placeholder="e.g. 180" min="0"
+          style="font-size:13px;" oninput="updateIngredient(${i},'costPerKg',this.value)">
+      </div>
+      <button class="btn bdn bic bsm" onclick="removeIngredient(${i})" title="Remove">✕</button>
+    </div>`).join('')}
+  `;
 }
-function savePricing(){autosavePricing();alert('Pricing saved ✓');}
-function updatePricingPreview(){
-  const tiers=[
-    {k:'basic',n:'🌿 Basic',sub:'Essential · 1 protein',feats:['1 protein source','BARF ratio meals','Core supplements','Meal plan PDF','Daily delivery']},
-    {k:'premium',n:'⭐ Premium',sub:'Variety · 2 proteins',feats:['2 proteins (rotation)','BARF ratio meals','Core + gut supplements','Meal plan PDF','Daily delivery','Monthly check-in'],ft:true},
-    {k:'elite',n:'👑 Elite',sub:'Complete · 3 proteins',feats:['3 proteins (full rotation)','BARF ratio meals','Full supplement stack','Meal plan PDF','Daily delivery','Weekly check-in','Priority support']}
+
+function addIngredient() {
+  if (!A.ingredients) A.ingredients = [];
+  A.ingredients.push({ name: '', costPerKg: '' });
+  sv(); renderIngredientTable();
+}
+
+function removeIngredient(i) {
+  A.ingredients.splice(i, 1);
+  sv(); renderIngredientTable();
+}
+
+function updateIngredient(i, field, val) {
+  if (!A.ingredients[i]) return;
+  A.ingredients[i][field] = field === 'costPerKg' ? (parseFloat(val)||0) : val;
+  sv();
+}
+
+function renderPlanConfigGrid() {
+  const tiers = [
+    { k: 'basic',   emoji: '🌿', label: 'Basic',   featured: false },
+    { k: 'premium', emoji: '⭐', label: 'Premium', featured: true  },
+    { k: 'elite',   emoji: '👑', label: 'Elite',   featured: false },
   ];
-  document.getElementById('pricing-preview').innerHTML=tiers.map(t=>{
-    const p=A.pricing[t.k];
-    const prots=(p.p||'').split(',').map(x=>x.trim()).filter(Boolean);
-    const price=p.price?'₹'+parseInt(p.price).toLocaleString('en-IN'):'Set price';
-    return`<div class="pc${t.ft?' ft':''}" style="position:relative;">
-      ${t.ft?'<div class="pbadge">Most Popular</div>':''}
-      <div class="pname">${t.n}</div><div class="ptag">${t.sub}</div>
-      <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--gm);margin-bottom:12px;">${price}<span style="font-size:13px;font-family:'DM Sans';color:var(--tl);font-weight:400;">/mo</span></div>
-      <ul class="pfeats">${t.feats.map(f=>`<li>${f}</li>`).join('')}</ul>
-      ${prots.length?`<div style="margin-top:10px;font-size:12px;color:var(--tm);">Proteins: <b>${prots.join(' + ')}</b></div>`:''}
+  document.getElementById('plan-config-grid').innerHTML = tiers.map(t => {
+    const p  = A.pricing[t.k] || {};
+    const pf = (A.planFeatures || {})[t.k] || DEFAULT_PLAN_FEATURES[t.k];
+    const feats = pf.features || [];
+    return `
+    <div class="pc${t.featured ? ' ft' : ''}" style="position:relative;">
+      ${t.featured ? '<div class="pbadge">Most Popular</div>' : ''}
+      <div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--gd);margin-bottom:4px;">${t.emoji} ${t.label}</div>
+
+      <div class="fg mt8">
+        <label class="fl">Plan tagline</label>
+        <input type="text" value="${pf.tagline||''}" placeholder="e.g. 1 protein · Essential nutrition"
+          style="font-size:12px;" oninput="updatePlanField('${t.k}','tagline',this.value)">
+      </div>
+
+      <div class="fg mt12">
+        <label class="fl">Monthly price (₹)</label>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <span style="color:var(--tm);">₹</span>
+          <input type="number" value="${p.price||''}" placeholder="e.g. 4500"
+            style="font-size:18px;font-weight:600;color:var(--gm);width:130px;"
+            oninput="updatePricingPrice('${t.k}',this.value)">
+          <span style="font-size:12px;color:var(--tl);">/month</span>
+        </div>
+      </div>
+
+      <div class="fg mt12">
+        <label class="fl">Proteins (comma-separated)</label>
+        <input type="text" value="${p.p||''}" placeholder="e.g. Chicken, Goat" list="prot-list"
+          style="font-size:13px;" oninput="updatePricingProts('${t.k}',this.value)">
+      </div>
+
+      <div class="fg mt12">
+        <label class="fl">Plan features (one per line)</label>
+        <textarea rows="${Math.max(4, feats.length + 1)}"
+          style="font-size:12px;line-height:1.7;"
+          oninput="updatePlanFeatures('${t.k}',this.value)"
+          placeholder="One feature per line…">${feats.join('\n')}</textarea>
+      </div>
+
+      <div style="margin-top:12px;padding:10px;background:var(--cream);border-radius:8px;">
+        <div class="fl mb8">Ingredients used in this plan</div>
+        ${renderPlanIngredients(t.k)}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Add prot datalist
+  if (!document.getElementById('prot-list')) {
+    const dl = document.createElement('datalist');
+    dl.id = 'prot-list';
+    ['Chicken','Goat (Mutton)','Lamb','Fish (Surmai)','Fish (Rawas)','Fish (Pomfret)','Eggs','Turkey','Rabbit','Duck','Pork'].forEach(v => {
+      const o = document.createElement('option'); o.value = v; dl.appendChild(o);
+    });
+    document.body.appendChild(dl);
+  }
+}
+
+function renderPlanIngredients(tierKey) {
+  const ingrs = A.ingredients || [];
+  const planIngrs = ((A.planFeatures || {})[tierKey] || {}).ingredients || {};
+  if (!ingrs.length) return '<div style="font-size:12px;color:var(--tl);">Add ingredients above first</div>';
+  return ingrs.filter(i => i.name).map((ing, idx) => {
+    const checked = planIngrs[ing.name] ? 'checked' : '';
+    return `<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tm);margin-bottom:4px;cursor:pointer;">
+      <input type="checkbox" ${checked} onchange="togglePlanIngredient('${tierKey}','${ing.name}',this.checked)">
+      ${ing.name} ${ing.costPerKg ? `<span style="color:var(--tl);">₹${ing.costPerKg}/kg</span>` : ''}
+    </label>`;
+  }).join('');
+}
+
+function togglePlanIngredient(tierKey, name, checked) {
+  if (!A.planFeatures) A.planFeatures = JSON.parse(JSON.stringify(DEFAULT_PLAN_FEATURES));
+  if (!A.planFeatures[tierKey].ingredients) A.planFeatures[tierKey].ingredients = {};
+  A.planFeatures[tierKey].ingredients[name] = checked;
+  sv(); updatePricingPreview();
+}
+
+function updatePlanField(tierKey, field, val) {
+  if (!A.planFeatures) A.planFeatures = JSON.parse(JSON.stringify(DEFAULT_PLAN_FEATURES));
+  A.planFeatures[tierKey][field] = val;
+  sv(); updatePricingPreview();
+}
+
+function updatePlanFeatures(tierKey, val) {
+  if (!A.planFeatures) A.planFeatures = JSON.parse(JSON.stringify(DEFAULT_PLAN_FEATURES));
+  A.planFeatures[tierKey].features = val.split('\n').map(l => l.trim()).filter(Boolean);
+  sv(); updatePricingPreview();
+}
+
+function updatePricingPrice(tierKey, val) {
+  if (!A.pricing[tierKey]) A.pricing[tierKey] = {};
+  A.pricing[tierKey].price = val;
+  sv(); updatePricingPreview();
+}
+
+function updatePricingProts(tierKey, val) {
+  if (!A.pricing[tierKey]) A.pricing[tierKey] = {};
+  A.pricing[tierKey].p = val;
+  sv(); updatePricingPreview();
+}
+
+function autosavePricing() { sv(); updatePricingPreview(); }
+function savePricing() { sv(); alert('Pricing saved ✓'); }
+
+function updatePricingPreview() {
+  const tiers = [
+    { k: 'basic',   emoji: '🌿', featured: false },
+    { k: 'premium', emoji: '⭐', featured: true  },
+    { k: 'elite',   emoji: '👑', featured: false },
+  ];
+  document.getElementById('pricing-preview').innerHTML = tiers.map(t => {
+    const p   = A.pricing[t.k] || {};
+    const pf  = (A.planFeatures || {})[t.k] || DEFAULT_PLAN_FEATURES[t.k];
+    const feats = pf.features || [];
+    const prots = (p.p || '').split(',').map(x => x.trim()).filter(Boolean);
+    const price = p.price ? '₹' + parseInt(p.price).toLocaleString('en-IN') : 'Set price';
+    // Ingredients used
+    const ingrsUsed = Object.entries(pf.ingredients || {}).filter(([,v]) => v).map(([k]) => k);
+    return `<div class="pc${t.featured ? ' ft' : ''}" style="position:relative;">
+      ${t.featured ? '<div class="pbadge">Most Popular</div>' : ''}
+      <div class="pname">${t.emoji} ${['Basic','Premium','Elite'][['basic','premium','elite'].indexOf(t.k)]}</div>
+      <div class="ptag">${pf.tagline || ''}</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--gm);margin-bottom:12px;">
+        ${price}<span style="font-size:13px;font-family:'DM Sans';color:var(--tl);font-weight:400;">/mo</span>
+      </div>
+      <ul class="pfeats">${feats.map(f => `<li>${f}</li>`).join('')}</ul>
+      ${prots.length ? `<div style="margin-top:10px;font-size:12px;color:var(--tm);">Proteins: <b>${prots.join(' + ')}</b></div>` : ''}
+      ${ingrsUsed.length ? `<div style="margin-top:8px;font-size:11px;color:var(--tl);">Includes: ${ingrsUsed.join(', ')}</div>` : ''}
     </div>`;
   }).join('');
 }
