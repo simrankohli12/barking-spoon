@@ -7,7 +7,173 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="nutrition.js"></script>
+<script>
+// ============================================================
+// THE BARKING SPOON — Canine Nutrition Logic v2.0
+// ============================================================
+
+function autoLifeStage(ageValue, ageUnit, breedSize) {
+  let ageMonths = parseFloat(ageValue) || 0;
+  if (ageUnit === 'years') ageMonths = ageMonths * 12;
+  const adultThreshold = { toy:10, small:12, medium:15, large:21, giant:24 }[breedSize] || 15;
+  const seniorThreshold = { toy:132, small:120, medium:96, large:84, giant:72 }[breedSize] || 96;
+  if (ageMonths < adultThreshold) return 'puppy';
+  if (ageMonths >= seniorThreshold) return 'senior';
+  return 'adult';
+}
+
+function breedSizeFromWeight(wt) {
+  if (wt < 5)  return 'toy';
+  if (wt < 10) return 'small';
+  if (wt < 25) return 'medium';
+  if (wt < 40) return 'large';
+  return 'giant';
+}
+
+function calcDog(d) {
+  const w = d.wt;
+  const ageMonths = d.ageu === 'years' ? (d.age||0)*12 : (d.age||0);
+  let pct;
+  if (d.ls === 'puppy') {
+    if (ageMonths <= 3) pct = 8.0;
+    else if (ageMonths <= 6) pct = 6.0;
+    else if (ageMonths <= 9) pct = 5.0;
+    else pct = 4.0;
+  } else if (d.ls === 'adult')     pct = 2.5;
+  else if (d.ls === 'senior')      pct = 2.0;
+  else if (d.ls === 'pregnant')    pct = 3.5;
+  else if (d.ls === 'lactating')   pct = 5.0;
+  else                              pct = 2.5;
+  pct *= { sedentary:0.80, moderate:1.0, active:1.2, working:1.4 }[d.act] || 1.0;
+  pct *= { thin:1.15, ideal:1.0, over:0.85, obese:0.70 }[d.bcs] || 1.0;
+  if (d.neu === 'yes' && d.ls === 'adult') pct *= 0.90;
+  const size = breedSizeFromWeight(w);
+  if (size === 'giant') pct *= 0.85;
+  if (size === 'toy')   pct *= 1.05;
+  const totalG = Math.round(w * 1000 * pct / 100);
+  const kpg = { raw:150, cooked:120, mixed:135 }[d.diet] || 150;
+  const kcal = Math.round(totalG * kpg / 100);
+  const meals = parseInt(d.meals) || 3;
+  return { kcal, totalG, pct: pct.toFixed(1), meals, perMeal: Math.round(totalG/meals) };
+}
+
+function barfRatios(diet) {
+  if (diet === 'raw') return [
+    { l:'Muscle Meat', p:70, c:'#e57373' }, { l:'Raw Meaty Bone', p:10, c:'#81c784' },
+    { l:'Liver', p:5, c:'#ffb74d' }, { l:'Secreting Organs', p:5, c:'#f06292' },
+    { l:'Vegetables & Fruit', p:7, c:'#64b5f6' }, { l:'Seeds / Extras', p:3, c:'#ba68c8' }];
+  if (diet === 'cooked') return [
+    { l:'Protein (Meat/Egg)', p:55, c:'#e57373' }, { l:'Carbohydrates', p:20, c:'#ffb74d' },
+    { l:'Calcium Source', p:10, c:'#81c784' }, { l:'Vegetables', p:12, c:'#64b5f6' },
+    { l:'Healthy Fats', p:3, c:'#ba68c8' }];
+  return [
+    { l:'Raw Protein', p:45, c:'#e57373' }, { l:'Cooked Protein', p:20, c:'#ef9a9a' },
+    { l:'Bone / Calcium', p:10, c:'#81c784' }, { l:'Organ Meat', p:8, c:'#ffb74d' },
+    { l:'Carbs + Veg', p:14, c:'#64b5f6' }, { l:'Fats / Extras', p:3, c:'#ba68c8' }];
+}
+
+function getSupplements(d) {
+  const w=d.wt, c=d.conds||[], s=[];
+  const add=(n,dose,why)=>s.push({n,dose,why});
+  add('Omega-3 / Fish Oil',`${Math.round(w*20)}mg EPA+DHA/day`,'STRONG · Anti-inflammatory, skin barrier, brain health · Roush et al., JAVMA 2010; Bauer, JVIM 2011');
+  add('Kelp / Iodine Source',w<10?'¼ tsp/day':w<30?'½ tsp/day':'¾ tsp/day','MODERATE · Iodine is NRC-required; may be deficient in whole-food diets without marine ingredients · NRC (2006) Ch. 5');
+  add('Probiotics',`${Math.max(1,Math.round(w/10))} billion CFU/day`,'MODERATE for dietary transitions and post-antibiotic recovery · Weese & Arroyo, JVIM 2003');
+  if (d.ls==='puppy') {
+    add('Vitamin D3',`${Math.round(w*10)} IU/day`,'STRONG · Calcium-phosphorus metabolism; NRC-required · Small Animal Clinical Nutrition 5th ed., Ch. 17');
+    if (d.diet!=='raw') add('Calcium — Eggshell Powder','1g per 100g food','STRONG · Cooked diets lack bone calcium; eggshell Ca:P closest to whole-prey · NRC (2006)');
+    add('DHA — Higher Dose',`${Math.round(w*25)}mg EPA+DHA/day`,'STRONG · Brain and retinal development in neonates · Heinemann et al., J Anim Physiol Anim Nutr 2005');
+  }
+  if (d.ls==='senior') {
+    add('Digestive Enzymes','Per product label — lipase + protease + amylase','MODERATE · Pancreatic exocrine function declines with age · Spillmann et al., JVIM 2001');
+    add('CoQ10',`${Math.round(w*1)}mg/day`,'MODERATE · Mitochondrial support; declines with age · Bhagavan & Chopra, Mitochondrion 2006');
+    add('Omega-3 — Increased Dose',`${Math.round(w*30)}mg EPA+DHA/day`,'MODERATE · Cognitive and joint support in ageing dogs · Araujo et al., 2005');
+  }
+  if (d.ls==='pregnant'||d.ls==='lactating') {
+    add('Folic Acid','400mcg/day','STRONG · NRC-required for fetal neural tube development · NRC (2006) Ch. 15');
+    add('Calcium — Eggshell','1g per 100g food','STRONG · Lactation dramatically increases calcium demand · Small Animal Clinical Nutrition 5th ed., Ch. 15');
+    if (d.ls==='lactating') add('Vitamin E',`${Math.round(w*1.5)} IU/day`,'MODERATE · Protects milk fat quality during oxidative stress of lactation · NRC (2006)');
+  }
+  if (c.includes('skin')) {
+    const fo=s.find(x=>x.n.includes('Omega-3')); if(fo) fo.dose=`${Math.round(w*35)}mg EPA+DHA/day (therapeutic dose for skin)`;
+    add('Vitamin E',`${Math.round(w*1)} IU/day`,'MODERATE · Synergistic with omega-3 for oxidative skin damage · Scott et al., Small Animal Dermatology 2001');
+    add('Zinc — via Whole Food','Increase red meat + organ frequency','STRONG · Zinc deficiency causes skin/coat issues · Small Animal Clinical Nutrition 5th ed., Ch. 32');
+  }
+  if (c.includes('joint')) {
+    add('Omega-3 — Joint Protocol',`${Math.round(w*30)}mg EPA+DHA/day`,'STRONG · Reduces intraarticular inflammation · Roush et al., JAVMA 2010 (RCT)');
+    add('Turmeric / Curcumin',w<10?'¼ tsp golden paste/day':w<30?'½ tsp/day':'1 tsp/day','MODERATE · NF-κB pathway inhibition · Must be golden paste for bioavailability · Innes et al., J Nutr Sci 2016');
+    add('Glucosamine + Chondroitin',`${Math.round(w*20)}mg glucosamine/day`,'WEAK–CONFLICTING · Modest benefit in some studies; no difference in others · Johnston et al., JAVMA 2008 · Use as adjunct only');
+  }
+  if (c.includes('digest')) {
+    add('Slippery Elm Bark','½ tsp per 10kg/day','EMERGING · Mucilaginous gut lining coating; limited canine RCTs · Monitor and discontinue if no improvement in 2 weeks');
+    if (!s.find(x=>x.n.includes('Digestive Enzymes'))) add('Digestive Enzymes','Per product label — lipase + protease','MODERATE for malabsorption · Spillmann et al., JVIM 2001');
+    add('L-Glutamine',`${Math.round(w*50)}mg/day`,'MODERATE · Primary enterocyte fuel; gut-healing in inflammatory conditions · Newsholme, J Nutr 2001');
+  }
+  if (c.includes('kidney')) add('Omega-3 — Renal Protocol',`${Math.round(w*25)}mg EPA+DHA/day`,'STRONG · Reduces intraglomerular hypertension; slows CKD progression · Brown et al., JAVMA 1998');
+  if (c.includes('liver')) add('Milk Thistle (Silymarin)',`${Math.round(w*5)}mg/day`,'MODERATE · Hepatoprotective; inhibits lipid peroxidation · Saller et al., Drugs 2001');
+  if (c.includes('anxiety')) add('L-Theanine',`${Math.round(w*5)}mg/day`,'MODERATE · Promotes alpha brain waves; reduces stress markers · Araujo et al., J Vet Behav 2010');
+  if (c.includes('immune')||c.includes('cancer')) {
+    add('Omega-3 — Anti-Cancer Dose',`${Math.round(w*40)}mg EPA+DHA/day`,'STRONG · Anti-proliferative and anti-cachexia · Ogilvie et al., JAVMA 2000');
+    add('Vitamin D3 — Therapeutic',`${Math.round(w*20)} IU/day`,'MODERATE · Low vitamin D correlates with cancer in dogs · Selting et al., JVIM 2016');
+  }
+  if (c.includes('heart')) {
+    add('Taurine',`${Math.round(w*25)}mg/day`,'STRONG · Deficiency linked to DCM in grain-free fed dogs · Kaplan et al., JVIM 2018');
+    add('L-Carnitine',`${Math.round(w*50)}mg/day`,'MODERATE · Cardiac fatty acid transport · Keene et al., JAVMA 1991');
+    add('CoQ10 — Cardiac Dose',`${Math.round(w*2)}mg/day`,'MODERATE · Mitochondrial cardiac support · Bhagavan & Chopra, Mitochondrion 2006');
+  }
+  if (c.includes('thyroid')) {
+    const ki=s.findIndex(x=>x.n.includes('Kelp'));
+    if (ki>=0) { s[ki].dose='⚠ CAUTION — discontinue or use only under vet guidance'; s[ki].why='Iodine excess worsens both hypo- and hyperthyroidism'; }
+    add('Selenium',`${Math.round(w*2)}mcg/day`,'MODERATE · T4→T3 deiodinase conversion · NRC (2006) · Do not exceed — narrow toxicity threshold');
+  }
+  if (d.bcs==='over'||d.bcs==='obese') add('L-Carnitine',`${Math.round(w*50)}mg/day`,'MODERATE · Fat oxidation support · Gross et al., JAVMA 1998');
+  return s;
+}
+
+function getVetNotes(dog) {
+  const conds=dog.conds||[], notes=[];
+  if (dog.allrg) notes.push(`⚠ Known sensitivity: <b>${dog.allrg}</b> — eliminate strictly. Novel protein elimination diet for 8–12 weeks required for diagnosis confirmation (Verlinden et al., Crit Rev Food Sci 2006).`);
+  if (conds.includes('kidney')) notes.push('Kidney (CKD): Moderate protein restriction reduces uraemic load — excessive restriction causes muscle wasting (IRIS staging guides). Restrict phosphorus. Increase hydration. Omega-3 therapeutic dose (Brown et al., JAVMA 1998). Vet monitoring required.');
+  if (conds.includes('diabetes')) notes.push('Diabetes: Eliminate all simple carbohydrates and fruit. Raw whole-food diet produces the lowest post-prandial glycaemic response (Fleeman & Rand, JAVMA 2001). Consistent meal timing critical. Blood glucose monitoring with vet essential.');
+  if (conds.includes('cancer')) notes.push('Cancer: Minimise all dietary carbohydrate. High fat, moderate protein, near-zero carb (Ogilvie et al., JAVMA 2000). Increase EPA/DHA significantly. Avoid immune-stimulating supplements without oncology vet guidance.');
+  if (conds.includes('liver')) notes.push('Liver Disease: Moderate protein — avoid excess hepatic ammonia load. Prefer eggs and poultry. Avoid high-purine meats. Milk thistle — moderate evidence. Vet hepatic panel required.');
+  if (conds.includes('heart')) notes.push('Heart Disease: Ensure taurine adequacy — especially post grain-free diet (FDA DCM investigation 2018–2019). Limit sodium. Regular echocardiogram recommended.');
+  if (conds.includes('pancreatitis')) notes.push('Pancreatitis: Strict low-fat only — fat triggers pancreatic enzyme hypersecretion. Lean white protein only. Small frequent meals. A single high-fat meal can trigger a life-threatening flare.');
+  if (dog.ls==='senior') notes.push('Senior: Maintain or increase protein to preserve lean mass (Freeman et al., JAVMA 2006). Warm food to body temperature. Feed 3 smaller meals. Bi-annual full bloodwork recommended.');
+  return notes;
+}
+
+function getDietNote(dog) {
+  const n = {
+    puppy: `${dog.name} is in active development — reassess portions every 2 weeks until 6 months, then monthly. Transition to adult ratios at breed-appropriate skeletal maturity, not a fixed age. Large breeds need puppy ratios until 18–24 months. Ref: Small Animal Clinical Nutrition 5th ed., Ch. 17`,
+    adult: `Review ${dog.name}'s portions every 3 months based on weight trend and body condition. Protein should remain high throughout adulthood. Ref: Case et al., Canine & Feline Nutrition 3rd ed.`,
+    senior: `Senior dogs do NOT need reduced protein — maintain or increase to prevent sarcopenia (Freeman et al., JAVMA 2006). Feed 3–4 smaller meals. Monitor weight closely. Bi-annual vet bloodwork essential.`,
+    pregnant: `Maintain current portions in the first 5 weeks. Increase gradually from week 5 — 25–50% above maintenance by week 9. Free-feed last 2 weeks before whelping. Ref: Small Animal Clinical Nutrition 5th ed., Ch. 15`,
+    lactating: `${dog.name} may need up to 3–4× maintenance at peak lactation (weeks 3–4). Feed ad-lib. Fresh water constantly available — dehydration reduces milk production. Reduce portions gradually as puppies wean.`
+  };
+  return n[dog.ls] || '';
+}
+
+function getSuppNote(dog) {
+  if (dog.ls==='puppy') return 'Introduce supplements one at a time, 5–7 days apart, from 8–10 weeks. Confirm with vet for pups under 12 weeks. Start at half dose. Source human-grade or third-party tested products.';
+  return 'Introduce each supplement individually over 5–7 days. Monitor stool, energy, and coat response. Source human-grade or vet-grade brands. Reassess need every 3–6 months.';
+}
+
+const dogEmojis = {
+  'Labrador Retriever':'🦮','Golden Retriever':'🦮','German Shepherd':'🐕‍🦺',
+  'Belgian Malinois':'🐕‍🦺','Australian Shepherd':'🐕‍🦺','Border Collie':'🐕‍🦺',
+  'Pomeranian':'🐩','Shih Tzu':'🐩','Pug':'🐶','Beagle':'🐕',
+  'Dachshund (Standard)':'🌭','Dachshund (Miniature)':'🌭','Rottweiler':'🐾',
+  'Siberian Husky':'🐺','French Bulldog':'🐶','Mixed Breed':'🐶',
+  'Indian Pariah Dog (INDog)':'🐕',
+};
+function dogEmoji(d) { return dogEmojis[d.breed]||'🐕'; }
+
+const condMap = {
+  skin:'Skin/Coat', joint:'Joint', digest:'Digestive', kidney:'Kidney',
+  diabetes:'Diabetes', dental:'Dental', anxiety:'Anxiety', immune:'Immune',
+  cancer:'Cancer', liver:'Liver', heart:'Heart', thyroid:'Thyroid', pancreatitis:'Pancreatitis'
+};
+</script>
 
 <style>
 @media print {
@@ -349,27 +515,78 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 <!-- =========== TAB 3: PRICING =========== -->
 <div class="panel" id="tab-pricing">
   <div class="phead">
-    <div><div class="ptitle">Plans & Pricing</div><div class="psub">Configure ingredients, costs, and plan offerings</div></div>
+    <div><div class="ptitle">Plans & Pricing</div><div class="psub">Ingredient costs, per-dog calculator & plan configuration</div></div>
     <button class="btn bp" onclick="savePricing()">💾 Save All</button>
   </div>
 
   <!-- SECTION A: INGREDIENT COST LIBRARY -->
   <div class="slabel mb8">Ingredient Cost Library</div>
   <div class="card mb12">
-    <div style="font-size:13px;color:var(--tm);margin-bottom:14px;">Your ingredient costs per kg — used to understand your cost structure across plans.</div>
-    <div id="ingr-table">
-      <!-- rendered by JS -->
-    </div>
+    <div style="font-size:13px;color:var(--tm);margin-bottom:14px;">Your ingredient costs per kg — used to calculate actual cost per dog below.</div>
+    <div id="ingr-table"></div>
     <button class="btn bo bsm mt12" onclick="addIngredient()">+ Add Ingredient</button>
   </div>
 
-  <!-- SECTION B: PLAN CONFIGURATION -->
-  <div class="slabel mb8">Plan Configuration</div>
-  <div class="pgrid" id="plan-config-grid">
-    <!-- rendered by JS -->
+  <!-- SECTION B: PER-DOG COST CALCULATOR -->
+  <div class="slabel mb8">Recipe Card & Cost Calculator</div>
+  <div class="card mb12">
+    <div class="g2" style="margin-bottom:16px;align-items:flex-end;">
+      <div class="fg">
+        <label class="fl">Select Dog</label>
+        <select id="cost-dog-sel" onchange="renderCostCalc()" style="width:100%;">
+          <option value="">— Select a dog —</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="fl">Weeks per Month</label>
+        <input type="number" id="cost-weeks" value="4" min="1" max="5" style="width:100%;" oninput="renderCostCalc()">
+      </div>
+    </div>
+
+    <div id="cost-calc-empty" style="color:var(--tl);font-size:13px;text-align:center;padding:24px 0;">
+      Select a dog to build their recipe card
+    </div>
+
+    <div id="cost-calc-content" style="display:none;">
+
+      <!-- Dog meal summary strip -->
+      <div class="mgrid mb16" id="cost-metrics"></div>
+
+      <!-- Recipe Card Note -->
+      <div id="recipe-note" style="background:var(--gp);border:1px solid #a8d8bc;border-radius:8px;padding:10px 14px;font-size:12px;color:var(--gm);margin-bottom:14px;"></div>
+
+      <!-- RECIPE CARD TABLE -->
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:var(--gd);color:white;">
+              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.5px;border-radius:8px 0 0 0;">Ingredient</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Qty/Day (g)</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">₹/kg</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Cost/Day</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Days/Week</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Cost/Week</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Cost/Month</th>
+              <th style="padding:10px 8px;text-align:center;border-radius:0 8px 0 0;"></th>
+            </tr>
+          </thead>
+          <tbody id="recipe-rows"></tbody>
+          <tfoot id="recipe-totals"></tfoot>
+        </table>
+      </div>
+
+      <button class="btn bo bsm mt12" onclick="addRecipeRow()">+ Add Ingredient</button>
+
+      <!-- Margin vs Plans -->
+      <div id="cost-margin" style="margin-top:16px;"></div>
+    </div>
   </div>
 
-  <!-- SECTION C: CLIENT-FACING PREVIEW -->
+  <!-- SECTION C: PLAN CONFIGURATION -->
+  <div class="slabel mb8">Plan Configuration</div>
+  <div class="pgrid" id="plan-config-grid"></div>
+
+  <!-- SECTION D: CLIENT-FACING PREVIEW -->
   <div class="slabel mt24 mb8">Client-Facing Preview</div>
   <div class="pgrid" id="pricing-preview"></div>
 </div>
@@ -852,7 +1069,7 @@ if (localStorage.getItem('tbs_auth') === '1') {
 }
 
 // ========= STATE =========
-let A = { dogs:[], pricing:{basic:{price:'',p:'Chicken'},premium:{price:'',p:'Chicken, Goat'},elite:{price:'',p:'Chicken, Goat, Fish'}}, deliveries:{}, renewals:{}, feast:[], ingredients:[], planFeatures:null };
+let A = { dogs:[], pricing:{basic:{price:'',p:'Chicken'},premium:{price:'',p:'Chicken, Goat'},elite:{price:'',p:'Chicken, Goat, Fish'}}, deliveries:{}, renewals:{}, feast:[], ingredients:[], planFeatures:null, costCalc:{} };
 let curDog=null, curTier='basic', calY=new Date().getFullYear(), calM=new Date().getMonth(), curDelId=null, fFilter='all', feastEditId=null;
 
 // ========= FIREBASE =========
@@ -993,7 +1210,10 @@ function showTab(id){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.getElementById('tab-'+id).classList.add('on');
   if(id==='dietplan'||id==='delivery')populateSels();
-  if(id==='pricing'){loadPricing();updatePricingPreview();}
+  if(id==='pricing'){loadPricing();updatePricingPreview();
+    const sel=document.getElementById('cost-dog-sel');
+    if(sel){sel.innerHTML='<option value="">— Select a dog —</option>'+A.dogs.map(d=>`<option value="${d.id}">${d.name}${d.owner?' ('+d.owner+')':''}</option>`).join('');}
+  }
 }
 
 // ========= PILL TOGGLE =========
@@ -1016,7 +1236,7 @@ function activePill(hidId,val){
 function updHdr(){document.getElementById('hdr-stat').textContent=A.dogs.length+(A.dogs.length===1?' dog':' dogs')+' registered';}
 
 // ========= DOG PROFILE CRUD =========
-// dogEmojis, dogEmoji, condMap — defined in nutrition.js
+// dogEmojis, dogEmoji, condMap — defined above
 const cardBgs=['#d4ede1','#fef3e2','#edf3fc','#fef0f0','#f5edfb','#e8f5fd'];
 
 function renderDogs(){
@@ -1152,9 +1372,7 @@ function populateSels(){
   });
 }
 
-// ========= NUTRITION ENGINE — see nutrition.js =========
-// calcDog, barfRatios, getSupplements, getVetNotes, getDietNote, getSuppNote
-// dogEmojis, dogEmoji, condMap — all defined in nutrition.js
+// calcDog, barfRatios, getSupplements, getVetNotes, getDietNote, getSuppNote — defined above
 
 // ========= DIET PLAN RENDERER =========
 function renderDiet(){
@@ -1509,7 +1727,221 @@ function updatePricingPreview() {
   }).join('');
 }
 
-// ========= DELIVERY CALENDAR =========
+// ========= RECIPE CARD COST CALCULATOR =========
+
+let costDogId = null;
+
+function getRecipeState(dogId) {
+  if (!A.costCalc) A.costCalc = {};
+  if (!A.costCalc[dogId]) A.costCalc[dogId] = { rows: [] };
+  return A.costCalc[dogId];
+}
+
+function buildDefaultRecipeRows(dog) {
+  const calc   = calcDog(dog);
+  const ratios = barfRatios(dog.diet);
+  const ingLib = A.ingredients || [];
+
+  // Helper: find cost/kg from library
+  const libCost = (keyword) => {
+    const match = ingLib.find(i => i.name && i.name.toLowerCase().includes(keyword.toLowerCase()));
+    return match ? (match.costPerKg || '') : '';
+  };
+
+  const rows = [];
+
+  if (dog.diet === 'raw') {
+    const muscleG  = Math.round(calc.totalG * 0.70);
+    const boneG    = Math.round(calc.totalG * 0.10);
+    const liverG   = Math.round(calc.totalG * 0.05);
+    const organsG  = Math.round(calc.totalG * 0.05);
+    const vegG     = Math.round(calc.totalG * 0.07);
+    const extrasG  = Math.round(calc.totalG * 0.03);
+
+    // Split muscle meat into example proteins (2 days each if 6-day week)
+    rows.push({ name:'Chicken (muscle meat)',    g: muscleG, costPerKg: libCost('chicken'), daysPerWeek:2, section:'🥩 Proteins' });
+    rows.push({ name:'Goat / Mutton',            g: muscleG, costPerKg: libCost('goat'),    daysPerWeek:2, section:'🥩 Proteins' });
+    rows.push({ name:'Duck',                     g: muscleG, costPerKg: libCost('duck'),    daysPerWeek:2, section:'🥩 Proteins' });
+    rows.push({ name:'Raw Meaty Bone',           g: boneG,   costPerKg: libCost('bone'),    daysPerWeek:7, section:'🦴 Bone' });
+    rows.push({ name:'Liver (Chicken or Goat)',  g: liverG,  costPerKg: libCost('liver'),   daysPerWeek:7, section:'🫀 Organs' });
+    rows.push({ name:'Secreting Organ (Kidney)', g: organsG, costPerKg: libCost('organ'),   daysPerWeek:7, section:'🫀 Organs' });
+    rows.push({ name:'Vegetables (mixed)',        g: vegG,    costPerKg: libCost('veg'),     daysPerWeek:7, section:'🥦 Veg' });
+    rows.push({ name:'Fish (topper)',             g: extrasG, costPerKg: libCost('fish'),    daysPerWeek:3, section:'✨ Extras' });
+    rows.push({ name:'Eggs',                     g: extrasG, costPerKg: libCost('egg'),     daysPerWeek:4, section:'✨ Extras' });
+  } else if (dog.diet === 'cooked') {
+    rows.push({ name:'Chicken (cooked)',         g: Math.round(calc.totalG*0.55), costPerKg: libCost('chicken'), daysPerWeek:3, section:'🥩 Proteins' });
+    rows.push({ name:'Goat (cooked)',            g: Math.round(calc.totalG*0.55), costPerKg: libCost('goat'),    daysPerWeek:2, section:'🥩 Proteins' });
+    rows.push({ name:'Fish (cooked)',            g: Math.round(calc.totalG*0.55), costPerKg: libCost('fish'),    daysPerWeek:2, section:'🥩 Proteins' });
+    rows.push({ name:'Rice / Millet',            g: Math.round(calc.totalG*0.20), costPerKg: 60,                daysPerWeek:7, section:'🌾 Carbs' });
+    rows.push({ name:'Eggshell Powder',          g: Math.round(calc.totalG*0.10), costPerKg: libCost('eggshell'), daysPerWeek:7, section:'🦴 Calcium' });
+    rows.push({ name:'Vegetables (steamed)',     g: Math.round(calc.totalG*0.12), costPerKg: libCost('veg'),     daysPerWeek:7, section:'🥦 Veg' });
+    rows.push({ name:'Coconut / Fish Oil',       g: Math.round(calc.totalG*0.03), costPerKg: 500,               daysPerWeek:7, section:'✨ Extras' });
+  } else {
+    rows.push({ name:'Chicken (raw)',            g: Math.round(calc.totalG*0.45), costPerKg: libCost('chicken'), daysPerWeek:3, section:'🥩 Proteins' });
+    rows.push({ name:'Goat (cooked)',            g: Math.round(calc.totalG*0.20), costPerKg: libCost('goat'),    daysPerWeek:2, section:'🥩 Proteins' });
+    rows.push({ name:'Raw Meaty Bone',           g: Math.round(calc.totalG*0.10), costPerKg: libCost('bone'),    daysPerWeek:7, section:'🦴 Bone' });
+    rows.push({ name:'Liver',                   g: Math.round(calc.totalG*0.08), costPerKg: libCost('liver'),   daysPerWeek:7, section:'🫀 Organs' });
+    rows.push({ name:'Vegetables + Grain',       g: Math.round(calc.totalG*0.14), costPerKg: libCost('veg'),     daysPerWeek:7, section:'🥦 Carbs + Veg' });
+    rows.push({ name:'Fish Oil / Extras',        g: Math.round(calc.totalG*0.03), costPerKg: 500,               daysPerWeek:7, section:'✨ Extras' });
+  }
+
+  return rows;
+}
+
+function renderCostCalc() {
+  const dogId  = document.getElementById('cost-dog-sel').value;
+  const weeks  = parseInt(document.getElementById('cost-weeks').value) || 4;
+  const dog    = A.dogs.find(d => d.id === dogId);
+  const empty  = document.getElementById('cost-calc-empty');
+  const content = document.getElementById('cost-calc-content');
+
+  if (!dog) { empty.style.display='block'; content.style.display='none'; return; }
+  empty.style.display='none'; content.style.display='block';
+  costDogId = dogId;
+
+  const state = getRecipeState(dogId);
+  if (!state.rows || !state.rows.length) {
+    state.rows = buildDefaultRecipeRows(dog);
+    sv();
+  }
+
+  const calc = calcDog(dog);
+
+  // Metrics
+  document.getElementById('cost-metrics').innerHTML = `
+    <div class="mc pr"><div class="mlb">Daily Grams</div><div class="mv">${calc.totalG}g</div><div class="mu">total / day</div></div>
+    <div class="mc"><div class="mlb">Meals / Day</div><div class="mv">${calc.meals}</div><div class="mu">meals</div></div>
+    <div class="mc"><div class="mlb">Grams / Meal</div><div class="mv">${calc.perMeal}g</div><div class="mu">per sitting</div></div>
+    <div class="mc"><div class="mlb">Weeks / Month</div><div class="mv">${weeks}</div><div class="mu">delivery weeks</div></div>`;
+
+  document.getElementById('recipe-note').innerHTML =
+    `🍽 This is <b>${dog.name}'s daily recipe</b> (${calc.totalG}g). ` +
+    `Split into <b>${calc.meals} meals of ~${calc.perMeal}g each</b>. ` +
+    `Proteins rotate across the week — each protein's days/week shows how often it appears.`;
+
+  // Build rows
+  const rows = state.rows;
+  let lastSection = '';
+  let totalWeekly = 0, totalMonthly = 0;
+
+  const rowsHTML = rows.map((r, i) => {
+    const g          = parseFloat(r.g) || 0;
+    const cpk        = parseFloat(r.costPerKg) || 0;
+    const dpw        = parseFloat(r.daysPerWeek) || 0;
+    const costPerDay = cpk ? +(g * cpk / 1000).toFixed(2) : 0;
+    const costWeek   = +(costPerDay * dpw).toFixed(2);
+    const costMonth  = +(costWeek * weeks).toFixed(2);
+    totalWeekly  += costWeek;
+    totalMonthly += costMonth;
+
+    const sectionHdr = (r.section && r.section !== lastSection)
+      ? `<tr><td colspan="8" style="padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.6px;background:var(--gp);">${r.section}</td></tr>`
+      : '';
+    lastSection = r.section || '';
+
+    const alt = i % 2 === 0 ? 'background:var(--cream);' : '';
+
+    return `${sectionHdr}
+    <tr style="${alt}">
+      <td style="padding:8px 12px;">
+        <input type="text" value="${r.name||''}" placeholder="e.g. Chicken"
+          style="font-size:13px;width:100%;min-width:140px;"
+          oninput="updateRecipeRow(${i},'name',this.value)">
+      </td>
+      <td style="padding:8px 6px;text-align:center;">
+        <input type="number" value="${r.g||''}" min="0" placeholder="g"
+          style="font-size:13px;width:70px;text-align:center;"
+          oninput="updateRecipeRow(${i},'g',this.value)">
+      </td>
+      <td style="padding:8px 6px;text-align:center;">
+        <div style="display:flex;align-items:center;gap:2px;justify-content:center;">
+          <span style="font-size:11px;color:var(--tm);">₹</span>
+          <input type="number" value="${r.costPerKg||''}" min="0" placeholder="180"
+            style="font-size:13px;width:70px;text-align:center;"
+            oninput="updateRecipeRow(${i},'costPerKg',this.value)">
+        </div>
+      </td>
+      <td style="padding:8px 6px;text-align:center;font-weight:600;color:${costPerDay?'var(--gd)':'var(--tl)'};">
+        ${costPerDay ? '₹'+costPerDay : '—'}
+      </td>
+      <td style="padding:8px 6px;text-align:center;">
+        <input type="number" value="${r.daysPerWeek||''}" min="0" max="7" placeholder="7"
+          style="font-size:13px;width:50px;text-align:center;"
+          oninput="updateRecipeRow(${i},'daysPerWeek',this.value)">
+      </td>
+      <td style="padding:8px 6px;text-align:center;font-weight:600;color:${costWeek?'var(--gm)':'var(--tl)'};">
+        ${costWeek ? '₹'+costWeek.toLocaleString('en-IN') : '—'}
+      </td>
+      <td style="padding:8px 6px;text-align:center;font-weight:700;color:${costMonth?'var(--gd)':'var(--tl)'};">
+        ${costMonth ? '₹'+costMonth.toLocaleString('en-IN') : '—'}
+      </td>
+      <td style="padding:8px 6px;text-align:center;">
+        <button class="btn bdn bic bsm" onclick="removeRecipeRow(${i})">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('recipe-rows').innerHTML = rowsHTML;
+
+  // Totals footer
+  document.getElementById('recipe-totals').innerHTML = `
+    <tr style="background:var(--gd);color:white;">
+      <td style="padding:12px;font-weight:700;font-size:14px;border-radius:0 0 0 8px;" colspan="5">Total Monthly Ingredient Cost</td>
+      <td style="padding:12px;text-align:center;font-weight:700;font-size:14px;">₹${totalWeekly.toFixed(0)}/wk</td>
+      <td style="padding:12px;text-align:center;font-weight:800;font-size:16px;">₹${totalMonthly.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')}</td>
+      <td style="border-radius:0 0 8px 0;"></td>
+    </tr>`;
+
+  // Margin
+  const tiers = ['basic','premium','elite'];
+  const marginCards = tiers.map(t => {
+    const planPrice = parseFloat(A.pricing[t]?.price) || 0;
+    if (!planPrice) return '';
+    const margin    = planPrice - totalMonthly;
+    const marginPct = planPrice ? Math.round(margin / planPrice * 100) : 0;
+    const col       = margin >= 0 ? 'var(--gm)' : 'var(--rd)';
+    const label     = { basic:'🌿 Basic', premium:'⭐ Premium', elite:'👑 Elite' }[t];
+    return `<div style="flex:1;background:var(--cream);border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center;">
+      <div style="font-size:12px;font-weight:600;color:var(--tm);margin-bottom:4px;">${label}</div>
+      <div style="font-size:11px;color:var(--tl);margin-bottom:6px;">You charge ₹${planPrice.toLocaleString('en-IN')}/mo</div>
+      <div style="font-size:22px;font-weight:800;color:${col};">₹${Math.abs(margin).toLocaleString('en-IN')}</div>
+      <div style="font-size:12px;color:${col};margin-top:2px;">${margin>=0 ? marginPct+'% margin' : 'LOSS'}</div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  document.getElementById('cost-margin').innerHTML = marginCards
+    ? `<div style="font-size:11px;font-weight:600;color:var(--tl);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Your Margin vs Plan Prices</div>
+       <div style="display:flex;gap:10px;">${marginCards}</div>`
+    : `<div style="font-size:12px;color:var(--tl);">Set plan prices in the configuration below to see your margin.</div>`;
+}
+
+function updateRecipeRow(i, field, val) {
+  if (!costDogId) return;
+  const state = getRecipeState(costDogId);
+  state.rows[i][field] = (field==='name' || field==='section') ? val : (parseFloat(val)||0);
+  sv(); renderCostCalc();
+}
+
+function removeRecipeRow(i) {
+  if (!costDogId) return;
+  getRecipeState(costDogId).rows.splice(i, 1);
+  sv(); renderCostCalc();
+}
+
+function addRecipeRow() {
+  if (!costDogId) { alert('Please select a dog first.'); return; }
+  getRecipeState(costDogId).rows.push({ name:'', g:'', costPerKg:'', daysPerWeek:7, section:'✨ Extras' });
+  sv(); renderCostCalc();
+}
+
+// Legacy stubs — no longer used but kept to avoid any reference errors
+function addRotationRow(){}
+function updateRotRow(){}
+function removeRotRow(){}
+function addFixedRow(){}
+function updateFixedRow(){}
+function removeFixedRow(){}
+function updateCostRow(){}
 function renderCal(){
   const dogId=document.getElementById('del-sel').value;
   const dog=A.dogs.find(d=>d.id===dogId);
