@@ -548,8 +548,8 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
         </select>
       </div>
       <div class="fg">
-        <label class="fl">Weeks per Month</label>
-        <input type="number" id="cost-weeks" value="4" min="1" max="5" style="width:100%;" onchange="renderCostCalc()">
+        <label class="fl">Days per Month</label>
+        <input type="number" id="cost-weeks" value="30" min="1" max="31" style="width:100%;" onchange="renderCostCalc()">
       </div>
     </div>
 
@@ -574,9 +574,9 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
               <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Qty/Day (g)</th>
               <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">₹/kg</th>
               <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Cost/Day</th>
-              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Days/Week</th>
-              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Cost/Week</th>
-              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Cost/Month</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Days/Wk</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Cost/Wk</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Cost/30 days</th>
               <th style="padding:10px 8px;text-align:center;border-radius:0 8px 0 0;"></th>
             </tr>
           </thead>
@@ -585,7 +585,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
         </table>
       </div>
 
-      <button class="btn bo bsm mt12" onclick="addRecipeRow()">+ Add Ingredient</button>
+      <button class="btn bo bsm mt12" onclick="addRecipeRow('✨ Extras')" style="font-size:11px;">+ Add to Extras</button>
 
       <!-- Margin vs Plans -->
       <div id="cost-margin" style="margin-top:16px;"></div>
@@ -1883,9 +1883,9 @@ function buildDefaultRecipeRows(dog) {
 }
 
 function renderCostCalc() {
-  const dogId  = document.getElementById('cost-dog-sel').value;
-  const weeks  = parseInt(document.getElementById('cost-weeks').value) || 4;
-  const dog    = A.dogs.find(d => d.id === dogId);
+  const dogId   = document.getElementById('cost-dog-sel').value;
+  const daysPerMonth = parseInt(document.getElementById('cost-weeks').value) || 30;
+  const dog     = A.dogs.find(d => d.id === dogId);
   const empty  = document.getElementById('cost-calc-empty');
   const content = document.getElementById('cost-calc-content');
 
@@ -1906,78 +1906,91 @@ function renderCostCalc() {
     <div class="mc pr"><div class="mlb">Daily Grams</div><div class="mv">${calc.totalG}g</div><div class="mu">total / day</div></div>
     <div class="mc"><div class="mlb">Meals / Day</div><div class="mv">${calc.meals}</div><div class="mu">meals</div></div>
     <div class="mc"><div class="mlb">Grams / Meal</div><div class="mv">${calc.perMeal}g</div><div class="mu">per sitting</div></div>
-    <div class="mc"><div class="mlb">Weeks / Month</div><div class="mv">${weeks}</div><div class="mu">delivery weeks</div></div>`;
+    <div class="mc"><div class="mlb">Days / Month</div><div class="mv">${daysPerMonth}</div><div class="mu">delivery days</div></div>`;
 
   document.getElementById('recipe-note').innerHTML =
     `🍽 This is <b>${dog.name}'s daily recipe</b> (${calc.totalG}g). ` +
     `Split into <b>${calc.meals} meals of ~${calc.perMeal}g each</b>. ` +
-    `Proteins rotate across the week — each protein's days/week shows how often it appears.`;
+    `Monthly cost calculated over <b>${daysPerMonth} days</b>. Proteins rotate across the week — set days/week for each.`;
 
-  // Build rows
+  // Build rows — group by section with per-section add buttons
   const rows = state.rows;
-  let lastSection = '';
+  const sections = ['🥩 Proteins','🦴 Bone','🫀 Organs','🥦 Veg','✨ Extras'];
   let totalWeekly = 0, totalMonthly = 0;
 
-  const rowsHTML = rows.map((r, i) => {
-    const g          = parseFloat(r.g) || 0;
-    const cpk        = parseFloat(r.costPerKg) || 0;
-    const dpw        = parseFloat(r.daysPerWeek) || 0;
-    const costPerDay = cpk ? +(g * cpk / 1000).toFixed(2) : 0;
-    const costWeek   = +(costPerDay * dpw).toFixed(2);
-    const costMonth  = +(costWeek * weeks).toFixed(2);
-    totalWeekly  += costWeek;
-    totalMonthly += costMonth;
+  // Pre-calculate totals for all rows
+  rows.forEach(r => {
+    const g = parseFloat(r.g)||0, cpk = parseFloat(r.costPerKg)||0, dpw = parseFloat(r.daysPerWeek)||0;
+    const costPerDay = cpk ? g*cpk/1000 : 0;
+    totalWeekly  += +(costPerDay * dpw).toFixed(2);
+    totalMonthly += +(costPerDay * (dpw/7*daysPerMonth)).toFixed(2);
+  });
 
-    const sectionHdr = (r.section && r.section !== lastSection)
-      ? `<tr><td colspan="8" style="padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.6px;background:var(--gp);">${r.section}</td></tr>`
-      : '';
-    lastSection = r.section || '';
+  // Build HTML section by section
+  let rowsHTML = '';
+  sections.forEach(section => {
+    const sectionRows = rows.map((r,i) => ({...r, _i:i})).filter(r => (r.section||'✨ Extras') === section);
 
-    const alt = i % 2 === 0 ? 'background:var(--cream);' : '';
-
-    return `${sectionHdr}
-    <tr style="${alt}">
-      <td style="padding:8px 12px;">
-        <input type="text" value="${r.name||''}" placeholder="e.g. Chicken"
-          style="font-size:13px;width:100%;min-width:140px;"
-          onchange="updateRecipeRow(${i},'name',this.value)">
-      </td>
-      <td style="padding:8px 6px;text-align:center;">
-        <input type="number" value="${r.g||''}" min="0" placeholder="g"
-          style="font-size:13px;width:70px;text-align:center;"
-          onchange="updateRecipeRow(${i},'g',this.value)">
-      </td>
-      <td style="padding:8px 6px;text-align:center;">
-        <div style="display:flex;align-items:center;gap:2px;justify-content:center;">
-          <span style="font-size:11px;color:var(--tm);">₹</span>
-          <input type="number" value="${r.costPerKg||''}" min="0" placeholder="180"
-            style="font-size:13px;width:70px;text-align:center;"
-            onchange="updateRecipeRow(${i},'costPerKg',this.value)">
-        </div>
-      </td>
-      <td style="padding:8px 6px;text-align:center;font-weight:600;color:${costPerDay?'var(--gd)':'var(--tl)'};">
-        ${costPerDay ? '₹'+costPerDay : '—'}
-      </td>
-      <td style="padding:8px 6px;text-align:center;">
-        <input type="number" value="${r.daysPerWeek||''}" min="0" max="7" placeholder="7"
-          style="font-size:13px;width:50px;text-align:center;"
-          onchange="updateRecipeRow(${i},'daysPerWeek',this.value)">
-      </td>
-      <td style="padding:8px 6px;text-align:center;font-weight:600;color:${costWeek?'var(--gm)':'var(--tl)'};">
-        ${costWeek ? '₹'+costWeek.toLocaleString('en-IN') : '—'}
-      </td>
-      <td style="padding:8px 6px;text-align:center;font-weight:700;color:${costMonth?'var(--gd)':'var(--tl)'};">
-        ${costMonth ? '₹'+costMonth.toLocaleString('en-IN') : '—'}
-      </td>
-      <td style="padding:8px 6px;text-align:center;">
-        <button class="btn bdn bic bsm" onclick="removeRecipeRow(${i})">✕</button>
+    // Section header with + Add button
+    rowsHTML += `<tr style="background:var(--gp);">
+      <td colspan="7" style="padding:8px 12px;font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.6px;">${section}</td>
+      <td style="padding:4px 6px;text-align:right;background:var(--gp);">
+        <button class="btn bo bsm" style="padding:3px 8px;font-size:11px;" onclick="addRecipeRow('${section}')">+ Add</button>
       </td>
     </tr>`;
-  }).join('');
+
+    if (sectionRows.length === 0) {
+      rowsHTML += `<tr><td colspan="8" style="padding:8px 12px;font-size:12px;color:var(--tl);font-style:italic;">No ingredients — click + Add</td></tr>`;
+    } else {
+      sectionRows.forEach((r, si) => {
+        const i = r._i;
+        const g = parseFloat(r.g)||0, cpk = parseFloat(r.costPerKg)||0, dpw = parseFloat(r.daysPerWeek)||0;
+        const costPerDay = cpk ? +(g*cpk/1000).toFixed(2) : 0;
+        const costWeek   = +(costPerDay*dpw).toFixed(2);
+        const costMonth  = +(costPerDay*(dpw/7*daysPerMonth)).toFixed(2);
+        const alt        = si%2===0 ? 'background:var(--cream);' : '';
+        rowsHTML += `<tr style="${alt}">
+          <td style="padding:8px 12px;">
+            <input type="text" value="${r.name||''}" placeholder="e.g. Chicken"
+              style="font-size:13px;width:100%;min-width:140px;"
+              onchange="updateRecipeRow(${i},'name',this.value)">
+          </td>
+          <td style="padding:8px 6px;text-align:center;">
+            <input type="number" value="${r.g||''}" min="0" placeholder="g"
+              style="font-size:13px;width:70px;text-align:center;"
+              onchange="updateRecipeRow(${i},'g',this.value)">
+          </td>
+          <td style="padding:8px 6px;text-align:center;">
+            <div style="display:flex;align-items:center;gap:2px;justify-content:center;">
+              <span style="font-size:11px;color:var(--tm);">₹</span>
+              <input type="number" value="${r.costPerKg||''}" min="0" placeholder="180"
+                style="font-size:13px;width:70px;text-align:center;"
+                onchange="updateRecipeRow(${i},'costPerKg',this.value)">
+            </div>
+          </td>
+          <td style="padding:8px 6px;text-align:center;font-weight:600;color:${costPerDay?'var(--gd)':'var(--tl)'};">
+            ${costPerDay ? '₹'+costPerDay : '—'}
+          </td>
+          <td style="padding:8px 6px;text-align:center;">
+            <input type="number" value="${r.daysPerWeek||''}" min="0" max="7" placeholder="7"
+              style="font-size:13px;width:50px;text-align:center;"
+              onchange="updateRecipeRow(${i},'daysPerWeek',this.value)">
+          </td>
+          <td style="padding:8px 6px;text-align:center;font-weight:600;color:${costWeek?'var(--gm)':'var(--tl)'};">
+            ${costWeek ? '₹'+costWeek.toLocaleString('en-IN') : '—'}
+          </td>
+          <td style="padding:8px 6px;text-align:center;font-weight:700;color:${costMonth?'var(--gd)':'var(--tl)'};">
+            ${costMonth ? '₹'+costMonth.toLocaleString('en-IN') : '—'}
+          </td>
+          <td style="padding:8px 6px;text-align:center;">
+            <button class="btn bdn bic bsm" onclick="removeRecipeRow(${i})">✕</button>
+          </td>
+        </tr>`;
+      });
+    }
+  });
 
   document.getElementById('recipe-rows').innerHTML = rowsHTML;
-
-  // ── 7-DAY PROTEIN VALIDATION ──
   const proteinRows    = rows.filter(r => r.section && r.section.includes('Protein'));
   const assignedDays   = proteinRows.reduce((s, r) => s + (parseFloat(r.daysPerWeek)||0), 0);
   const unassignedDays = 7 - assignedDays;
@@ -2022,7 +2035,7 @@ function renderCostCalc() {
   // Totals footer
   document.getElementById('recipe-totals').innerHTML = `
     <tr style="background:var(--gd);color:white;">
-      <td style="padding:12px;font-weight:700;font-size:14px;border-radius:0 0 0 8px;" colspan="5">Total Monthly Ingredient Cost</td>
+      <td style="padding:12px;font-weight:700;font-size:14px;border-radius:0 0 0 8px;" colspan="5">Total — ${daysPerMonth} Days</td>
       <td style="padding:12px;text-align:center;font-weight:700;font-size:14px;">₹${totalWeekly.toFixed(0)}/wk</td>
       <td style="padding:12px;text-align:center;font-weight:800;font-size:16px;">₹${totalMonthly.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')}</td>
       <td style="border-radius:0 0 8px 0;"></td>
@@ -2074,9 +2087,9 @@ function removeRecipeRow(i) {
   sv(); renderCostCalc();
 }
 
-function addRecipeRow() {
+function addRecipeRow(section) {
   if (!costDogId) { alert('Please select a dog first.'); return; }
-  getRecipeState(costDogId).rows.push({ name:'', g:'', costPerKg:'', daysPerWeek:7, section:'✨ Extras' });
+  getRecipeState(costDogId).rows.push({ name:'', g:'', costPerKg:'', daysPerWeek: section&&section.includes('Protein')?2:7, section: section||'✨ Extras' });
   sv(); renderCostCalc();
 }
 
