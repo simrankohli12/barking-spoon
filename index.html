@@ -540,12 +540,21 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
   <!-- SECTION B: PER-DOG COST CALCULATOR -->
   <div class="slabel mb8">Recipe Card & Cost Calculator</div>
   <div class="card mb12">
-    <div class="g2" style="margin-bottom:16px;align-items:flex-end;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;align-items:flex-end;">
       <div class="fg">
         <label class="fl">Select Dog</label>
         <select id="cost-dog-sel" onchange="renderCostCalc()" style="width:100%;">
           <option value="">— Select a dog —</option>
         </select>
+      </div>
+      <div class="fg">
+        <label class="fl">Plan</label>
+        <div class="pg">
+          <button class="pb on" onclick="setCostTier(this,'basic')">🌿 Basic</button>
+          <button class="pb" onclick="setCostTier(this,'premium')">⭐ Premium</button>
+          <button class="pb" onclick="setCostTier(this,'elite')">👑 Elite</button>
+        </div>
+        <input type="hidden" id="cost-tier" value="basic">
       </div>
       <div class="fg">
         <label class="fl">Weeks per Month</label>
@@ -1823,24 +1832,38 @@ function updatePricingPreview() {
 
 // ========= RECIPE CARD COST CALCULATOR =========
 
-let costDogId = null;
+let costDogId  = null;
+let costTier   = 'basic';
 
-function getRecipeState(dogId) {
-  if (!A.costCalc) A.costCalc = {};
-  if (!A.costCalc[dogId]) A.costCalc[dogId] = { rows: [] };
-  return A.costCalc[dogId];
+function setCostTier(btn, tier) {
+  btn.closest('.pg').querySelectorAll('.pb').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('cost-tier').value = tier;
+  costTier = tier;
+  renderCostCalc();
 }
 
-function buildDefaultRecipeRows(dog) {
+function getRecipeState(dogId, tier) {
+  if (!A.costCalc) A.costCalc = {};
+  const key = `${dogId}__${tier}`;
+  if (!A.costCalc[key]) A.costCalc[key] = { rows: [] };
+  return A.costCalc[key];
+}
+
+function buildDefaultRecipeRows(dog, tier) {
   const calc   = calcDog(dog);
   const ratios = barfRatios(dog.diet);
   const ingLib = A.ingredients || [];
-
-  // Helper: find cost/kg from library
   const libCost = (keyword) => {
     const match = ingLib.find(i => i.name && i.name.toLowerCase().includes(keyword.toLowerCase()));
     return match ? (match.costPerKg || '') : '';
   };
+
+  // Protein count per tier
+  const proteinCount = { basic:1, premium:2, elite:3 }[tier] || 1;
+  // Get configured proteins for this tier from pricing
+  const configuredProts = (A.pricing[tier]?.p || '').split(',').map(x=>x.trim()).filter(Boolean);
+  const defaultProts = ['Chicken','Goat (Mutton)','Duck','Fish','Turkey','Rabbit'];
 
   const rows = [];
 
@@ -1852,33 +1875,48 @@ function buildDefaultRecipeRows(dog) {
     const vegG     = Math.round(calc.totalG * 0.07);
     const extrasG  = Math.round(calc.totalG * 0.03);
 
-    // Split muscle meat into example proteins (2 days each if 6-day week)
-    rows.push({ name:'Chicken (muscle meat)',    g: muscleG, costPerKg: libCost('chicken'), daysPerWeek:2, section:'🥩 Proteins' });
-    rows.push({ name:'Goat / Mutton',            g: muscleG, costPerKg: libCost('goat'),    daysPerWeek:2, section:'🥩 Proteins' });
-    rows.push({ name:'Duck',                     g: muscleG, costPerKg: libCost('duck'),    daysPerWeek:2, section:'🥩 Proteins' });
-    rows.push({ name:'Raw Meaty Bone',           g: boneG,   costPerKg: libCost('bone'),    daysPerWeek:7, section:'🦴 Bone' });
-    rows.push({ name:'Liver (Chicken or Goat)',  g: liverG,  costPerKg: libCost('liver'),   daysPerWeek:7, section:'🫀 Organs' });
-    rows.push({ name:'Secreting Organ (Kidney)', g: organsG, costPerKg: libCost('organ'),   daysPerWeek:7, section:'🫀 Organs' });
-    rows.push({ name:'Vegetables (mixed)',        g: vegG,    costPerKg: libCost('veg'),     daysPerWeek:7, section:'🥦 Veg' });
-    rows.push({ name:'Fish (topper)',             g: extrasG, costPerKg: libCost('fish'),    daysPerWeek:3, section:'✨ Extras' });
-    rows.push({ name:'Eggs',                     g: extrasG, costPerKg: libCost('egg'),     daysPerWeek:4, section:'✨ Extras' });
-    rows.push({ name:'Day 29 — Chicken',         g: muscleG, costPerKg: libCost('chicken'), daysPerWeek:1, section:'📅 Extra Days' });
-    rows.push({ name:'Day 30 — Goat',            g: muscleG, costPerKg: libCost('goat'),    daysPerWeek:1, section:'📅 Extra Days' });
+    // Proteins — one per tier slot, days split across 7
+    const daysEach = Math.floor(7 / proteinCount);
+    const remainder = 7 - (daysEach * proteinCount);
+    for (let p = 0; p < proteinCount; p++) {
+      const protName = configuredProts[p] || defaultProts[p] || `Protein ${p+1}`;
+      rows.push({ name: protName, g: muscleG, costPerKg: libCost(protName.split(' ')[0]), daysPerWeek: daysEach + (p===0 ? remainder : 0), section:'🥩 Proteins' });
+    }
+
+    rows.push({ name:'Raw Meaty Bone',           g: boneG,    costPerKg: libCost('bone'),    daysPerWeek:7, section:'🦴 Bone' });
+    rows.push({ name:'Liver (Chicken or Goat)',  g: liverG,   costPerKg: libCost('liver'),   daysPerWeek:7, section:'🫀 Organs' });
+    rows.push({ name:'Secreting Organ (Kidney)', g: organsG,  costPerKg: libCost('organ'),   daysPerWeek:7, section:'🫀 Organs' });
+    rows.push({ name:'Vegetables (mixed)',        g: vegG,     costPerKg: libCost('veg'),     daysPerWeek:7, section:'🥦 Veg' });
+    rows.push({ name:'Fish (topper)',             g: extrasG,  costPerKg: libCost('fish'),    daysPerWeek:3, section:'✨ Extras' });
+    rows.push({ name:'Eggs',                     g: extrasG,  costPerKg: libCost('egg'),     daysPerWeek:4, section:'✨ Extras' });
+    rows.push({ name:`Day 29 — ${configuredProts[0]||'Chicken'}`, g: muscleG, costPerKg: libCost(configuredProts[0]||'chicken'), daysPerWeek:1, section:'📅 Extra Days' });
+    rows.push({ name:`Day 30 — ${configuredProts[1]||configuredProts[0]||'Goat'}`,  g: muscleG, costPerKg: libCost(configuredProts[1]||'goat'),    daysPerWeek:1, section:'📅 Extra Days' });
+
   } else if (dog.diet === 'cooked') {
-    rows.push({ name:'Chicken (cooked)',         g: Math.round(calc.totalG*0.55), costPerKg: libCost('chicken'), daysPerWeek:3, section:'🥩 Proteins' });
-    rows.push({ name:'Goat (cooked)',            g: Math.round(calc.totalG*0.55), costPerKg: libCost('goat'),    daysPerWeek:2, section:'🥩 Proteins' });
-    rows.push({ name:'Fish (cooked)',            g: Math.round(calc.totalG*0.55), costPerKg: libCost('fish'),    daysPerWeek:2, section:'🥩 Proteins' });
-    rows.push({ name:'Rice / Millet',            g: Math.round(calc.totalG*0.20), costPerKg: 60,                daysPerWeek:7, section:'🌾 Carbs' });
-    rows.push({ name:'Eggshell Powder',          g: Math.round(calc.totalG*0.10), costPerKg: libCost('eggshell'), daysPerWeek:7, section:'🦴 Calcium' });
-    rows.push({ name:'Vegetables (steamed)',     g: Math.round(calc.totalG*0.12), costPerKg: libCost('veg'),     daysPerWeek:7, section:'🥦 Veg' });
-    rows.push({ name:'Coconut / Fish Oil',       g: Math.round(calc.totalG*0.03), costPerKg: 500,               daysPerWeek:7, section:'✨ Extras' });
+    const daysEach = Math.floor(7 / proteinCount);
+    for (let p = 0; p < proteinCount; p++) {
+      const protName = configuredProts[p] || defaultProts[p] || `Protein ${p+1}`;
+      rows.push({ name:`${protName} (cooked)`, g: Math.round(calc.totalG*0.55), costPerKg: libCost(protName.split(' ')[0]), daysPerWeek: daysEach, section:'🥩 Proteins' });
+    }
+    rows.push({ name:'Rice / Millet',       g: Math.round(calc.totalG*0.20), costPerKg:60,               daysPerWeek:7, section:'🥦 Veg' });
+    rows.push({ name:'Eggshell Powder',     g: Math.round(calc.totalG*0.10), costPerKg:200,              daysPerWeek:7, section:'🦴 Bone' });
+    rows.push({ name:'Vegetables (steamed)',g: Math.round(calc.totalG*0.12), costPerKg:libCost('veg'),   daysPerWeek:7, section:'🥦 Veg' });
+    rows.push({ name:'Fish / Coconut Oil',  g: Math.round(calc.totalG*0.03), costPerKg:500,              daysPerWeek:7, section:'✨ Extras' });
+    rows.push({ name:'Day 29',              g: Math.round(calc.totalG*0.55), costPerKg:libCost(configuredProts[0]||'chicken'), daysPerWeek:1, section:'📅 Extra Days' });
+    rows.push({ name:'Day 30',              g: Math.round(calc.totalG*0.55), costPerKg:libCost(configuredProts[0]||'chicken'), daysPerWeek:1, section:'📅 Extra Days' });
+
   } else {
-    rows.push({ name:'Chicken (raw)',            g: Math.round(calc.totalG*0.45), costPerKg: libCost('chicken'), daysPerWeek:3, section:'🥩 Proteins' });
-    rows.push({ name:'Goat (cooked)',            g: Math.round(calc.totalG*0.20), costPerKg: libCost('goat'),    daysPerWeek:2, section:'🥩 Proteins' });
-    rows.push({ name:'Raw Meaty Bone',           g: Math.round(calc.totalG*0.10), costPerKg: libCost('bone'),    daysPerWeek:7, section:'🦴 Bone' });
-    rows.push({ name:'Liver',                   g: Math.round(calc.totalG*0.08), costPerKg: libCost('liver'),   daysPerWeek:7, section:'🫀 Organs' });
-    rows.push({ name:'Vegetables + Grain',       g: Math.round(calc.totalG*0.14), costPerKg: libCost('veg'),     daysPerWeek:7, section:'🥦 Carbs + Veg' });
-    rows.push({ name:'Fish Oil / Extras',        g: Math.round(calc.totalG*0.03), costPerKg: 500,               daysPerWeek:7, section:'✨ Extras' });
+    const daysEach = Math.floor(7 / proteinCount);
+    for (let p = 0; p < proteinCount; p++) {
+      const protName = configuredProts[p] || defaultProts[p];
+      rows.push({ name:`${protName} (raw)`, g: Math.round(calc.totalG*0.45), costPerKg: libCost(protName.split(' ')[0]), daysPerWeek: daysEach, section:'🥩 Proteins' });
+    }
+    rows.push({ name:'Raw Meaty Bone',       g: Math.round(calc.totalG*0.10), costPerKg:libCost('bone'),  daysPerWeek:7, section:'🦴 Bone' });
+    rows.push({ name:'Liver',               g: Math.round(calc.totalG*0.08), costPerKg:libCost('liver'), daysPerWeek:7, section:'🫀 Organs' });
+    rows.push({ name:'Vegetables + Grain',  g: Math.round(calc.totalG*0.14), costPerKg:libCost('veg'),   daysPerWeek:7, section:'🥦 Veg' });
+    rows.push({ name:'Fish Oil / Extras',   g: Math.round(calc.totalG*0.03), costPerKg:500,              daysPerWeek:7, section:'✨ Extras' });
+    rows.push({ name:'Day 29',              g: Math.round(calc.totalG*0.45), costPerKg:libCost(configuredProts[0]||'chicken'), daysPerWeek:1, section:'📅 Extra Days' });
+    rows.push({ name:'Day 30',              g: Math.round(calc.totalG*0.45), costPerKg:libCost(configuredProts[0]||'chicken'), daysPerWeek:1, section:'📅 Extra Days' });
   }
 
   return rows;
@@ -1887,17 +1925,18 @@ function buildDefaultRecipeRows(dog) {
 function renderCostCalc() {
   const dogId = document.getElementById('cost-dog-sel').value;
   const weeks = parseInt(document.getElementById('cost-weeks').value) || 4;
+  const tier  = document.getElementById('cost-tier').value || 'basic';
   const dog   = A.dogs.find(d => d.id === dogId);
   const empty  = document.getElementById('cost-calc-empty');
   const content = document.getElementById('cost-calc-content');
 
   if (!dog) { empty.style.display='block'; content.style.display='none'; return; }
   empty.style.display='none'; content.style.display='block';
-  costDogId = dogId;
+  costDogId = dogId; costTier = tier;
 
-  const state = getRecipeState(dogId);
+  const state = getRecipeState(dogId, tier);
   if (!state.rows || !state.rows.length) {
-    state.rows = buildDefaultRecipeRows(dog);
+    state.rows = buildDefaultRecipeRows(dog, tier);
     sv();
   }
 
@@ -1910,10 +1949,11 @@ function renderCostCalc() {
     <div class="mc"><div class="mlb">Grams / Meal</div><div class="mv">${calc.perMeal}g</div><div class="mu">per sitting</div></div>
     <div class="mc"><div class="mlb">Weeks / Month</div><div class="mv">${weeks}</div><div class="mu">${weeks*7} days + extra</div></div>`;
 
+  const tierLabel = { basic:'🌿 Basic', premium:'⭐ Premium', elite:'👑 Elite' }[tier];
   document.getElementById('recipe-note').innerHTML =
-    `🍽 This is <b>${dog.name}'s daily recipe</b> (${calc.totalG}g). ` +
-    `Split into <b>${calc.meals} meals of ~${calc.perMeal}g each</b>. ` +
-    `Base: <b>${weeks} weeks × 7 days = ${weeks*7} days</b>. Use the <b>📅 Extra Days</b> section for the remaining days to hit 30.`;
+    `🍽 <b>${dog.name} — ${tierLabel} Plan</b>. Daily: ${calc.totalG}g → ` +
+    `<b>${calc.meals} meals of ~${calc.perMeal}g each</b>. ` +
+    `Base: <b>${weeks} weeks × 7 days = ${weeks*7} days</b> + Extra Days section for remainder.`;
 
   // Build rows — group by section with per-section add buttons
   const rows = state.rows;
@@ -2102,21 +2142,21 @@ function renderCostCalc() {
 
 function updateRecipeRow(i, field, val) {
   if (!costDogId) return;
-  const state = getRecipeState(costDogId);
+  const state = getRecipeState(costDogId, costTier);
   state.rows[i][field] = (field==='name' || field==='section') ? val : (parseFloat(val)||0);
   sv(); renderCostCalc();
 }
 
 function removeRecipeRow(i) {
   if (!costDogId) return;
-  getRecipeState(costDogId).rows.splice(i, 1);
+  getRecipeState(costDogId, costTier).rows.splice(i, 1);
   sv(); renderCostCalc();
 }
 
 function addRecipeRow(section) {
   if (!costDogId) { alert('Please select a dog first.'); return; }
   const isExtra = section === '📅 Extra Days';
-  getRecipeState(costDogId).rows.push({
+  getRecipeState(costDogId, costTier).rows.push({
     name: '', g: '', costPerKg: '',
     daysPerWeek: isExtra ? 1 : (section && section.includes('Protein') ? 2 : 7),
     section: section || '✨ Extras'
