@@ -490,9 +490,9 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 
     <div class="slabel mt20">Plan Tier</div>
     <div class="pg" style="max-width:360px;margin-bottom:16px;">
-      <button class="pb on" onclick="setTier(this,'Foundational')">🌿 Foundational</button>
-      <button class="pb" onclick="setTier(this,'Balanced')">⭐ Balanced</button>
-      <button class="pb" onclick="setTier(this,'Functional')">👑 Functional</button>
+      <button class="pb on" onclick="setTier(this,'basic')">🌱 Foundational</button>
+      <button class="pb" onclick="setTier(this,'premium')">⚖️ Balanced</button>
+      <button class="pb" onclick="setTier(this,'elite')">🎯 Functional</button>
     </div>
 
     <div class="g2">
@@ -550,9 +550,9 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
       <div class="fg">
         <label class="fl">Plan</label>
         <div class="pg">
-          <button class="pb on" onclick="setCostTier(this,'Foundational')">🌿 Foundational</button>
-          <button class="pb" onclick="setCostTier(this,'Balanced')">⭐ Balanced</button>
-          <button class="pb" onclick="setCostTier(this,'Functional')">👑 Functional</button>
+          <button class="pb on" onclick="setCostTier(this,'basic')">🌱 Foundational</button>
+          <button class="pb" onclick="setCostTier(this,'premium')">⚖️ Balanced</button>
+          <button class="pb" onclick="setCostTier(this,'elite')">🎯 Functional</button>
         </div>
         <input type="hidden" id="cost-tier" value="basic">
       </div>
@@ -1147,7 +1147,7 @@ if (localStorage.getItem('tbs_auth') === '1') {
 }
 
 // ========= STATE =========
-let A = { dogs:[], pricing:{Foundational:{price:'',p:'Chicken'},Balanced:{price:'',p:'Chicken, Goat'},Functional:{price:'',p:'Chicken, Goat, Fish'}}, deliveries:{}, renewals:{}, feast:[], ingredients:[], planFeatures:null, costCalc:{}, customPlans:{} };
+let A = { dogs:[], pricing:{basic:{price:'',p:'Chicken'},premium:{price:'',p:'Chicken, Goat'},elite:{price:'',p:'Chicken, Goat, Fish'}}, deliveries:{}, renewals:{}, feast:[], ingredients:[], planFeatures:null, costCalc:{}, customPlans:{} };
 let curDog=null, curTier='basic', calY=new Date().getFullYear(), calM=new Date().getMonth(), curDelId=null, fFilter='all', feastEditId=null;
 
 // ========= FIREBASE =========
@@ -1181,6 +1181,7 @@ async function initFirebase() {
       await db.collection(FB_COL).doc(FB_DOC).set(A);
     }
     setSyncStatus('ok','Synced ✓');
+    reloadPricing();
   } catch(e) {
     console.error('Firebase error:', e);
     db = null;
@@ -1603,7 +1604,7 @@ function renderPlanProts(tier){
   const prots=(p?.p||'').split(',').map(x=>x.trim()).filter(Boolean);
   const cols=['#e57373','#ffb74d','#64b5f6'];
   document.getElementById('plan-prots').innerHTML=prots.length
-    ?`<div style="font-size:12px;color:var(--tm);margin-bottom:8px;">${{Foundational:'Foundational',Balanced:'Balanced',Functional:'Functional'}[tier]} Plan — ${prots.length} protein${prots.length>1?' (rotation)':''}</div>`+
+    ?`<div style="font-size:12px;color:var(--tm);margin-bottom:8px;">${{basic:'Foundational',premium:'Balanced',elite:'Functional'}[tier]} Plan — ${prots.length} protein${prots.length>1?' (rotation)':''}</div>`+
       prots.map((pr,i)=>`<span class="tag" style="background:${cols[i]}22;color:${cols[i]};border:1px solid ${cols[i]}55;margin:2px;">${pr}</span>`).join('')
     :`<div style="color:var(--tl);font-size:13px;">Set proteins in Plans & Pricing tab</div>`;
 }
@@ -1625,29 +1626,41 @@ const DEFAULT_INGREDIENTS = [
 ];
 
 const DEFAULT_PLAN_FEATURES = {
-  Foundational: {
-    tagline: '1 protein · Essential whole-food nutrition',
-    features: ['1 protein source (rotation within protein)', 'BARF / home-cooked ratio meals', 'Core supplement protocol', 'Personalised meal plan PDF', 'Daily delivery']
+  basic: {
+    tagline: '1 protein · Foundation of species-appropriate nutrition',
+    features: ['1 protein source (weekly rotation)', 'BARF / home-cooked ratio meals', 'Core supplement protocol', 'Personalised meal plan PDF', 'Daily delivery']
   },
-  Balanced: {
-    tagline: '2 proteins · Better variety & balance',
+  premium: {
+    tagline: '2 proteins · Complete nutrition with variety',
     features: ['2 proteins (weekly rotation)', 'BARF / home-cooked ratio meals', 'Core + gut supplement protocol', 'Personalised meal plan PDF', 'Daily delivery', 'Monthly nutrition check-in']
   },
-  Functional: {
-    tagline: '3 proteins · Full rotation & complete support',
+  elite: {
+    tagline: '3 proteins · Full therapeutic nutrition support',
     features: ['3 proteins (full rotation schedule)', 'BARF / home-cooked ratio meals', 'Complete supplement stack', 'Personalised meal plan PDF', 'Daily delivery', 'Weekly check-in + adjustments', 'Priority WhatsApp support']
   }
 };
 
 function loadPricing() {
-  // Ensure ingredients and plan features are initialised
+  // Initialise defaults only if not already set
   if (!A.ingredients || !A.ingredients.length) A.ingredients = JSON.parse(JSON.stringify(DEFAULT_INGREDIENTS));
   if (!A.planFeatures) A.planFeatures = JSON.parse(JSON.stringify(DEFAULT_PLAN_FEATURES));
-  // Legacy: ensure pricing structure exists
-  if (!A.pricing) A.pricing = { Foundational:{price:'',p:'Chicken'}, Balanced:{price:'',p:'Chicken, Goat'}, Functional:{price:'',p:'Chicken, Goat, Fish'} };
-  renderIngredientTable();
-  renderPlanConfigGrid();
+  if (!A.pricing) A.pricing = { basic:{price:'',p:'Chicken'}, premium:{price:'',p:'Chicken, Goat'}, elite:{price:'',p:'Chicken, Goat, Fish'} };
+
+  // Only render the config grid if not yet rendered — prevents wiping unsaved input
+  const grid = document.getElementById('plan-config-grid');
+  if (!grid.dataset.rendered) {
+    renderIngredientTable();
+    renderPlanConfigGrid();
+    grid.dataset.rendered = '1';
+  }
   updatePricingPreview();
+}
+
+// Call this explicitly when you need to force a full re-render (e.g. after Firebase sync)
+function reloadPricing() {
+  const grid = document.getElementById('plan-config-grid');
+  delete grid.dataset.rendered;
+  loadPricing();
 }
 
 function renderIngredientTable() {
@@ -1691,9 +1704,9 @@ function updateIngredient(i, field, val) {
 
 function renderPlanConfigGrid() {
   const tiers = [
-    { k: 'Foundational',   emoji: '🌿', label: 'Foundational',   featured: false },
-    { k: 'Balanced', emoji: '⭐', label: 'Balanced', featured: true  },
-    { k: 'Functional',   emoji: '👑', label: 'Functional',   featured: false },
+    { k: 'basic',   emoji: '🌿', label: 'Foundational',   featured: false },
+    { k: 'premium', emoji: '⭐', label: 'Balanced', featured: true  },
+    { k: 'elite',   emoji: '👑', label: 'Functional',   featured: false },
   ];
   document.getElementById('plan-config-grid').innerHTML = tiers.map(t => {
     const p  = A.pricing[t.k] || {};
@@ -1799,14 +1812,35 @@ function updatePricingProts(tierKey, val) {
   sv(); updatePricingPreview();
 }
 
-function autosavePricing() { sv(); updatePricingPreview(); }
-function savePricing() { sv(); alert('Pricing saved ✓'); }
+function savePricing() {
+  // Explicitly collect all field values from the DOM before saving
+  ['basic','premium','elite'].forEach(tier => {
+    const priceEl    = document.querySelector(`input[onchange="updatePricingPrice('${tier}',this.value)"]`);
+    const protsEl    = document.querySelector(`input[onchange="updatePricingProts('${tier}',this.value)"]`);
+    const taglineEl  = document.querySelector(`input[onchange="updatePlanField('${tier}','tagline',this.value)"]`);
+    const featuresEl = document.querySelector(`textarea[onchange="updatePlanFeatures('${tier}',this.value)"]`);
+
+    if (!A.pricing[tier]) A.pricing[tier] = {};
+    if (!A.planFeatures) A.planFeatures = JSON.parse(JSON.stringify(DEFAULT_PLAN_FEATURES));
+    if (!A.planFeatures[tier]) A.planFeatures[tier] = {};
+
+    if (priceEl)    A.pricing[tier].price = priceEl.value;
+    if (protsEl)    A.pricing[tier].p     = protsEl.value;
+    if (taglineEl)  A.planFeatures[tier].tagline  = taglineEl.value;
+    if (featuresEl) A.planFeatures[tier].features = featuresEl.value.split('\n').map(l=>l.trim()).filter(Boolean);
+  });
+  sv();
+  updatePricingPreview();
+  // Show brief confirmation
+  const btn = document.querySelector('#tab-pricing .btn.bp');
+  if (btn) { const orig = btn.textContent; btn.textContent = '✓ Saved!'; setTimeout(()=>btn.textContent=orig, 1500); }
+}
 
 function updatePricingPreview() {
   const tiers = [
-    { k: 'Foundational',   emoji: '🌿', featured: false },
-    { k: 'Balanced', emoji: '⭐', featured: true  },
-    { k: 'Functional',   emoji: '👑', featured: false },
+    { k: 'basic',   emoji: '🌿', featured: false },
+    { k: 'premium', emoji: '⭐', featured: true  },
+    { k: 'elite',   emoji: '👑', featured: false },
   ];
   document.getElementById('pricing-preview').innerHTML = tiers.map(t => {
     const p   = A.pricing[t.k] || {};
@@ -1818,7 +1852,7 @@ function updatePricingPreview() {
     const ingrsUsed = Object.entries(pf.ingredients || {}).filter(([,v]) => v).map(([k]) => k);
     return `<div class="pc${t.featured ? ' ft' : ''}" style="position:relative;">
       ${t.featured ? '<div class="pbadge">Most Popular</div>' : ''}
-      <div class="pname">${t.emoji} ${['Foundational','Balanced','Functional'][['Foundational','Balanced','Functional'].indexOf(t.k)]}</div>
+      <div class="pname">${t.emoji} ${['Foundational','Balanced','Functional'][['basic','premium','elite'].indexOf(t.k)]}</div>
       <div class="ptag">${pf.tagline || ''}</div>
       <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--gm);margin-bottom:12px;">
         ${price}<span style="font-size:13px;font-family:'DM Sans';color:var(--tl);font-weight:400;">/mo</span>
@@ -1860,7 +1894,7 @@ function buildDefaultRecipeRows(dog, tier) {
   };
 
   // Protein count per tier
-  const proteinCount = { Foundational:1, Balanced:2, Functional:3 }[tier] || 1;
+  const proteinCount = { basic:1, premium:2, elite:3 }[tier] || 1;
   // Get configured proteins for this tier from pricing
   const configuredProts = (A.pricing[tier]?.p || '').split(',').map(x=>x.trim()).filter(Boolean);
   const defaultProts = ['Chicken','Goat (Mutton)','Duck','Fish','Turkey','Rabbit'];
@@ -1949,7 +1983,7 @@ function renderCostCalc() {
     <div class="mc"><div class="mlb">Grams / Meal</div><div class="mv">${calc.perMeal}g</div><div class="mu">per sitting</div></div>
     <div class="mc"><div class="mlb">Weeks / Month</div><div class="mv">${weeks}</div><div class="mu">${weeks*7} days + extra</div></div>`;
 
-  const tierLabel = { basic:'🌿 Foundational', Balanced:'⭐ Balanced', Functional:'👑 Functional' }[tier];
+  const tierLabel = { basic:'🌱 Foundational', premium:'⚖️ Balanced', elite:'🎯 Functional' }[tier];
   document.getElementById('recipe-note').innerHTML =
     `🍽 <b>${dog.name} — ${tierLabel} Plan</b>. Daily: ${calc.totalG}g → ` +
     `<b>${calc.meals} meals of ~${calc.perMeal}g each</b>. ` +
@@ -2108,10 +2142,10 @@ function renderCostCalc() {
     </tr>`;
 
   // ── MARGIN vs ALL 3 PLANS ── (always show all 3, even if price not set)
-  const tiers = ['Foundational','Balanced','Functional'];
+  const tiers = ['basic','premium','elite'];
   const marginCards = tiers.map(t => {
     const planPrice = parseFloat(A.pricing[t]?.price) || 0;
-    const label     = { Foundational:'🌿 Foundational', Balanced:'⭐ Balanced', Functional:'👑 Functional' }[t];
+    const label     = { basic:'🌱 Foundational', premium:'⚖️ Balanced', elite:'🎯 Functional' }[t];
     if (!planPrice) return `
       <div style="flex:1;background:var(--cream);border:1px dashed var(--bd);border-radius:10px;padding:14px;text-align:center;opacity:.6;">
         <div style="font-size:12px;font-weight:600;color:var(--tm);margin-bottom:4px;">${label}</div>
@@ -2205,7 +2239,7 @@ function renderCal(){
 
   // Plan info
   const ren=A.renewals[dogId]||{};
-  const pName=ren.plan?{Foundational:'🌿 Foundational',Balanced:'⭐ Balanced',Functional:'👑 Functional'}[ren.plan]:'—';
+  const pName=ren.plan?{basic:'🌱 Foundational',premium:'⚖️ Balanced',elite:'🎯 Functional'}[ren.plan]:'—';
   const price=ren.plan&&A.pricing[ren.plan]?.price?'₹'+parseInt(A.pricing[ren.plan].price).toLocaleString('en-IN')+'/mo':'—';
   document.getElementById('del-info').innerHTML=`
     <div class="br"><div style="color:var(--tm)">Dog</div><div style="font-weight:600">${dog.name}</div></div>
@@ -2215,9 +2249,9 @@ function renderCal(){
     <div class="br"><div style="color:var(--tm)">Plan</div><div>
       <select onchange="setDogPlan('${dogId}',this.value)" style="border:none;background:none;font-weight:600;color:var(--gm);padding:0;font-size:13px;cursor:pointer;">
         <option value="">—</option>
-        <option value="Foundational"${ren.plan==='Foundational'?' selected':''}>🌿 Foundational</option>
-        <option value="Balanced"${ren.plan==='Balanced'?' selected':''}>⭐ Balanced</option>
-        <option value="Functional"${ren.plan==='Functional'?' selected':''}>👑 Functional</option>
+        <option value="basic"${ren.plan==='basic'?' selected':''}>🌱 Foundational</option>
+        <option value="premium"${ren.plan==='premium'?' selected':''}>⚖️ Balanced</option>
+        <option value="elite"${ren.plan==='elite'?' selected':''}>🎯 Functional</option>
       </select>
     </div></div>
     <div class="br"><div style="color:var(--tm)">Monthly fee</div><div style="font-weight:600;color:var(--gm)">${price}</div></div>`;
@@ -2358,7 +2392,7 @@ function printPlan(){
   if(!curDog){alert('Please select a dog first.');return;}
   const d=curDog,calc=calcDog(d),ratios=barfRatios(d.diet),supps=getSupplements(d);
   const prots=(A.pricing[curTier]?.p||'').split(',').map(x=>x.trim()).filter(Boolean);
-  const tierName={Foundational:'🌿 Foundational',Balanced:'⭐ Balanced',Functional:'👑 Functional'}[curTier];
+  const tierName={basic:'🌱 Foundational',premium:'⚖️ Balanced',elite:'🎯 Functional'}[curTier];
   document.getElementById('print-content').innerHTML=`
     <div class="print-section">
       <h2>Dog Profile</h2>
