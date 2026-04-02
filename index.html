@@ -465,16 +465,26 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 <!-- =========== TAB 2: DIET PLAN =========== -->
 <div class="panel" id="tab-dietplan">
   <div class="phead">
-    <div><div class="ptitle">Diet Plans</div><div class="psub">Species-appropriate nutrition for every dog</div></div>
+    <div>
+      <div class="ptitle">Diet Plans</div>
+      <div class="psub">Species-appropriate nutrition for every dog</div>
+    </div>
     <div class="fc g8r">
       <select id="pd-sel" onchange="renderDiet()" style="width:210px;">
         <option value="">— Select a dog —</option>
       </select>
+      <button class="btn bo" id="edit-plan-btn" onclick="openEditPlan()" style="display:none;">✏️ Edit Plan</button>
+      <button class="btn bg bsm" id="reset-plan-btn" onclick="resetCustomPlan()" style="display:none;color:var(--rd);" title="Remove customisations and revert to auto">↺ Reset to Auto</button>
       <button class="btn bo" onclick="printPlan()">⬇ Download PDF</button>
     </div>
   </div>
   <div id="diet-empty" class="empty"><div class="ei">🥩</div><p>Select a dog to generate their personalised diet plan</p></div>
   <div id="diet-content" style="display:none;">
+
+    <div id="custom-plan-banner" style="display:none;background:var(--ap);border:1px solid #f5d5a8;border-radius:8px;padding:9px 14px;font-size:12px;color:var(--am);margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+      ✏️ <span>This plan has been <b>manually customised</b>. Auto-calculation is overridden. Click <b>Reset to Auto</b> to revert.</span>
+    </div>
+
     <div class="slabel">Daily Requirements</div>
     <div class="mgrid" id="diet-metrics"></div>
 
@@ -539,7 +549,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
       </div>
       <div class="fg">
         <label class="fl">Weeks per Month</label>
-        <input type="number" id="cost-weeks" value="4" min="1" max="5" style="width:100%;" oninput="renderCostCalc()">
+        <input type="number" id="cost-weeks" value="4" min="1" max="5" style="width:100%;" onchange="renderCostCalc()">
       </div>
     </div>
 
@@ -1015,6 +1025,65 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
   </div>
 </div>
 
+<!-- =========== EDIT PLAN MODAL =========== -->
+<div class="mo hid" id="edit-plan-modal">
+  <div class="mb" style="max-width:760px;">
+    <div class="mh">
+      <h2>✏️ Edit Diet Plan</h2>
+      <button class="btn bg bsm" onclick="closeEditPlan()">✕</button>
+    </div>
+    <div class="mbdy" style="max-height:75vh;overflow-y:auto;">
+
+      <div class="note mb16"><span class="ni">💡</span><span>Override the auto-calculated values for this dog. Only the fields you fill in will be saved — leave blank to keep the auto value.</span></div>
+
+      <!-- Daily totals -->
+      <div class="slabel mb8">Daily Totals</div>
+      <div class="g2 mb16">
+        <div class="fg"><label class="fl">Total Daily Grams</label><input type="number" id="ep-totalG" placeholder="Auto-calculated" min="1"></div>
+        <div class="fg"><label class="fl">Meals per Day</label>
+          <div class="pg">
+            <button class="pb" onclick="sp(this,'ep-meals','2')">2</button>
+            <button class="pb" onclick="sp(this,'ep-meals','3')">3</button>
+            <button class="pb" onclick="sp(this,'ep-meals','4')">4</button>
+          </div>
+          <input type="hidden" id="ep-meals" value="">
+        </div>
+      </div>
+
+      <!-- Meal breakdown -->
+      <div class="slabel mb8">Meal Breakdown (grams per component)</div>
+      <div style="font-size:12px;color:var(--tm);margin-bottom:10px;">Leave blank to use auto-calculated percentages.</div>
+      <div id="ep-breakdown-rows"></div>
+      <button class="btn bo bsm mt8" onclick="addEpBreakdownRow()">+ Add Component</button>
+
+      <div class="div mt16"></div>
+
+      <!-- Supplements -->
+      <div class="slabel mb8">Supplements</div>
+      <div style="font-size:12px;color:var(--tm);margin-bottom:10px;">Add, remove, or modify supplements. Leave as is to keep auto-recommendations.</div>
+      <div id="ep-supp-rows"></div>
+      <button class="btn bo bsm mt8" onclick="addEpSuppRow()">+ Add Supplement</button>
+
+      <div class="div mt16"></div>
+
+      <!-- Vet notes -->
+      <div class="slabel mb8">Clinical / Vet Notes</div>
+      <textarea id="ep-vetnotes" rows="4" placeholder="Add your own clinical notes — these will appear below supplements…" style="width:100%;font-size:13px;line-height:1.6;"></textarea>
+
+      <!-- Life stage / diet note -->
+      <div class="fg mt12">
+        <label class="fl">Feeding Guidance Note</label>
+        <textarea id="ep-dietnote" rows="3" placeholder="Custom feeding instructions for this dog…" style="width:100%;font-size:13px;line-height:1.6;"></textarea>
+      </div>
+
+    </div>
+    <div class="mft">
+      <button class="btn bg" onclick="closeEditPlan()">Cancel</button>
+      <button class="btn bp" onclick="saveEditPlan()">💾 Save Custom Plan</button>
+    </div>
+  </div>
+</div>
+
 <!-- =========== FIREBASE SETTINGS MODAL =========== -->
 <div class="mo hid" id="fb-modal">
   <div class="mb" style="max-width:560px;">
@@ -1069,7 +1138,7 @@ if (localStorage.getItem('tbs_auth') === '1') {
 }
 
 // ========= STATE =========
-let A = { dogs:[], pricing:{basic:{price:'',p:'Chicken'},premium:{price:'',p:'Chicken, Goat'},elite:{price:'',p:'Chicken, Goat, Fish'}}, deliveries:{}, renewals:{}, feast:[], ingredients:[], planFeatures:null, costCalc:{} };
+let A = { dogs:[], pricing:{basic:{price:'',p:'Chicken'},premium:{price:'',p:'Chicken, Goat'},elite:{price:'',p:'Chicken, Goat, Fish'}}, deliveries:{}, renewals:{}, feast:[], ingredients:[], planFeatures:null, costCalc:{}, customPlans:{} };
 let curDog=null, curTier='basic', calY=new Date().getFullYear(), calM=new Date().getMonth(), curDelId=null, fFilter='all', feastEditId=null;
 
 // ========= FIREBASE =========
@@ -1382,25 +1451,46 @@ function renderDiet(){
   document.getElementById('diet-content').style.display=dog?'block':'none';
   if(!dog)return;
   curDog=dog;
-  const calc=calcDog(dog);
+
+  // Check for custom plan
+  const custom = (A.customPlans||{})[dog.id] || null;
+  const isCustom = !!custom;
+
+  // Show/hide edit & reset buttons
+  document.getElementById('edit-plan-btn').style.display = 'inline-flex';
+  document.getElementById('reset-plan-btn').style.display = isCustom ? 'inline-flex' : 'none';
+  const banner = document.getElementById('custom-plan-banner');
+  banner.style.display = isCustom ? 'flex' : 'none';
+
+  const calc = calcDog(dog);
+
+  // Use custom overrides if set, else auto
+  const totalG   = (custom?.totalG)  || calc.totalG;
+  const meals    = parseInt(custom?.meals || calc.meals);
+  const perMeal  = Math.round(totalG / meals);
 
   // Metrics
   document.getElementById('diet-metrics').innerHTML=`
-    <div class="mc pr"><div class="mlb">Daily Food</div><div class="mv">${fmt(calc.totalG)}</div><div class="mu">grams / day</div></div>
+    <div class="mc pr"><div class="mlb">Daily Food</div><div class="mv">${fmt(totalG)}</div><div class="mu">grams / day${isCustom?' ✏️':''}</div></div>
     <div class="mc"><div class="mlb">% Body Weight</div><div class="mv">${calc.pct}%</div><div class="mu">intake rate</div></div>
     <div class="mc"><div class="mlb">Calories (est.)</div><div class="mv">${fmt(calc.kcal)}</div><div class="mu">kcal / day</div></div>
-    <div class="mc"><div class="mlb">Per Meal</div><div class="mv">${fmt(calc.perMeal)}</div><div class="mu">grams × ${calc.meals}</div></div>`;
+    <div class="mc"><div class="mlb">Per Meal</div><div class="mv">${fmt(perMeal)}</div><div class="mu">grams × ${meals}${isCustom?' ✏️':''}</div></div>`;
 
-  // BARF
-  const ratios=barfRatios(dog.diet);
-  document.getElementById('barf-bd').innerHTML=ratios.map(r=>{
-    const g=Math.round(calc.totalG*r.p/100);
-    return`<div class="br"><div style="color:var(--tm)"><span class="bdot" style="background:${r.c}"></span>${r.l}</div><div style="font-weight:600">${g}g <span style="font-size:11px;color:var(--tl)">(${r.p}%)</span></div></div>`;
-  }).join('');
+  // BARF breakdown — use custom breakdown if saved
+  const ratios = barfRatios(dog.diet);
+  if (custom?.breakdown?.length) {
+    document.getElementById('barf-bd').innerHTML = custom.breakdown.map(r =>
+      `<div class="br"><div style="color:var(--tm)"><span class="bdot" style="background:${r.color||'#ccc'}"></span>${r.label}</div><div style="font-weight:600">${r.g}g <span style="font-size:11px;color:var(--am)">✏️ custom</span></div></div>`
+    ).join('');
+  } else {
+    document.getElementById('barf-bd').innerHTML=ratios.map(r=>{
+      const g=Math.round(totalG*r.p/100);
+      return`<div class="br"><div style="color:var(--tm)"><span class="bdot" style="background:${r.c}"></span>${r.l}</div><div style="font-weight:600">${g}g <span style="font-size:11px;color:var(--tl)">(${r.p}%)</span></div></div>`;
+    }).join('');
+  }
 
   renderPlanProts(curTier);
 
-  // Meal ingredient breakdown
   const mealNames = ['Breakfast','Midday','Dinner','Evening'];
   const prots = (A.pricing[curTier]?.p||'').split(',').map(x=>x.trim()).filter(Boolean);
 
@@ -1443,8 +1533,8 @@ function renderDiet(){
     return rows;
   }
 
-  const mealCards = Array.from({length: calc.meals}, (_, i) => {
-    const ingredients = mealIngredients(calc.perMeal, i);
+  const mealCards = Array.from({length: meals}, (_, i) => {
+    const ingredients = mealIngredients(perMeal, i);
     const rows = ingredients.map(r => {
       const flagStyle = r.flagged ? 'color:var(--rd);text-decoration:line-through;' : '';
       const flag = r.flagged ? ' ⚠' : '';
@@ -1466,7 +1556,7 @@ function renderDiet(){
     return `<div style="background:var(--cream);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div style="font-size:12px;font-weight:700;color:var(--am);text-transform:uppercase;letter-spacing:.7px;">${mealNames[i]}</div>
-        <div style="font-size:13px;font-weight:700;color:var(--gd);">${calc.perMeal}g total</div>
+        <div style="font-size:13px;font-weight:700;color:var(--gd);">${perMeal}g total</div>
       </div>
       ${rows}
     </div>`;
@@ -1474,20 +1564,22 @@ function renderDiet(){
 
   document.getElementById('meal-sched').innerHTML = mealCards;
 
-  // Supplements — from nutrition.js
-  const supps = getSupplements(dog);
+  // Supplements — custom if saved, else auto
+  const supps = (custom?.supplements?.length) ? custom.supplements : getSupplements(dog);
   document.getElementById('supp-list').innerHTML = supps.map(s =>
     `<div class="sc"><div class="sn">${s.n}</div><div class="sd">${s.dose}</div><div class="sw">${s.why}</div></div>`).join('');
   document.getElementById('supp-note').textContent = getSuppNote(dog);
 
-  // Vet notes — from nutrition.js
-  const vetNotes = getVetNotes(dog);
-  document.getElementById('vet-notes').innerHTML = vetNotes.length
-    ? vetNotes.map(n => `<p style="margin-bottom:6px;">• ${n}</p>`).join('')
+  // Vet notes — custom appended to auto, or custom only
+  const autoVetNotes = getVetNotes(dog);
+  const customNote   = custom?.vetNotes || '';
+  const allVetNotes  = [...autoVetNotes, ...(customNote ? [customNote] : [])];
+  document.getElementById('vet-notes').innerHTML = allVetNotes.length
+    ? allVetNotes.map(n => `<p style="margin-bottom:6px;">• ${n}</p>`).join('')
     : '<p style="color:var(--tl);">No specific conditions flagged — maintain standard BARF protocol.</p>';
 
-  // Life stage note — from nutrition.js
-  document.getElementById('diet-note').textContent = getDietNote(dog);
+  // Diet note — custom overrides auto
+  document.getElementById('diet-note').textContent = (custom?.dietNote) || getDietNote(dog);
 }
 
 function setTier(btn,tier){
@@ -1560,11 +1652,11 @@ function renderIngredientTable() {
     ${ingrs.map((ing, i) => `
     <div style="display:grid;grid-template-columns:1fr 160px 40px;gap:8px;align-items:center;margin-bottom:6px;">
       <input type="text" value="${ing.name}" placeholder="e.g. Chicken"
-        style="font-size:13px;" oninput="updateIngredient(${i},'name',this.value)">
+        style="font-size:13px;" onchange="updateIngredient(${i},'name',this.value)">
       <div style="display:flex;align-items:center;gap:4px;">
         <span style="font-size:13px;color:var(--tm);">₹</span>
         <input type="number" value="${ing.costPerKg||''}" placeholder="e.g. 180" min="0"
-          style="font-size:13px;" oninput="updateIngredient(${i},'costPerKg',this.value)">
+          style="font-size:13px;" onchange="updateIngredient(${i},'costPerKg',this.value)">
       </div>
       <button class="btn bdn bic bsm" onclick="removeIngredient(${i})" title="Remove">✕</button>
     </div>`).join('')}
@@ -1606,7 +1698,7 @@ function renderPlanConfigGrid() {
       <div class="fg mt8">
         <label class="fl">Plan tagline</label>
         <input type="text" value="${pf.tagline||''}" placeholder="e.g. 1 protein · Essential nutrition"
-          style="font-size:12px;" oninput="updatePlanField('${t.k}','tagline',this.value)">
+          style="font-size:12px;" onchange="updatePlanField('${t.k}','tagline',this.value)">
       </div>
 
       <div class="fg mt12">
@@ -1615,7 +1707,7 @@ function renderPlanConfigGrid() {
           <span style="color:var(--tm);">₹</span>
           <input type="number" value="${p.price||''}" placeholder="e.g. 4500"
             style="font-size:18px;font-weight:600;color:var(--gm);width:130px;"
-            oninput="updatePricingPrice('${t.k}',this.value)">
+            onchange="updatePricingPrice('${t.k}',this.value)">
           <span style="font-size:12px;color:var(--tl);">/month</span>
         </div>
       </div>
@@ -1623,14 +1715,14 @@ function renderPlanConfigGrid() {
       <div class="fg mt12">
         <label class="fl">Proteins (comma-separated)</label>
         <input type="text" value="${p.p||''}" placeholder="e.g. Chicken, Goat" list="prot-list"
-          style="font-size:13px;" oninput="updatePricingProts('${t.k}',this.value)">
+          style="font-size:13px;" onchange="updatePricingProts('${t.k}',this.value)">
       </div>
 
       <div class="fg mt12">
         <label class="fl">Plan features (one per line)</label>
         <textarea rows="${Math.max(4, feats.length + 1)}"
           style="font-size:12px;line-height:1.7;"
-          oninput="updatePlanFeatures('${t.k}',this.value)"
+          onchange="updatePlanFeatures('${t.k}',this.value)"
           placeholder="One feature per line…">${feats.join('\n')}</textarea>
       </div>
 
@@ -1688,6 +1780,8 @@ function updatePricingPrice(tierKey, val) {
   if (!A.pricing[tierKey]) A.pricing[tierKey] = {};
   A.pricing[tierKey].price = val;
   sv(); updatePricingPreview();
+  // Refresh margin in cost calculator if a dog is selected
+  if (costDogId) renderCostCalc();
 }
 
 function updatePricingProts(tierKey, val) {
@@ -1846,19 +1940,19 @@ function renderCostCalc() {
       <td style="padding:8px 12px;">
         <input type="text" value="${r.name||''}" placeholder="e.g. Chicken"
           style="font-size:13px;width:100%;min-width:140px;"
-          oninput="updateRecipeRow(${i},'name',this.value)">
+          onchange="updateRecipeRow(${i},'name',this.value)">
       </td>
       <td style="padding:8px 6px;text-align:center;">
         <input type="number" value="${r.g||''}" min="0" placeholder="g"
           style="font-size:13px;width:70px;text-align:center;"
-          oninput="updateRecipeRow(${i},'g',this.value)">
+          onchange="updateRecipeRow(${i},'g',this.value)">
       </td>
       <td style="padding:8px 6px;text-align:center;">
         <div style="display:flex;align-items:center;gap:2px;justify-content:center;">
           <span style="font-size:11px;color:var(--tm);">₹</span>
           <input type="number" value="${r.costPerKg||''}" min="0" placeholder="180"
             style="font-size:13px;width:70px;text-align:center;"
-            oninput="updateRecipeRow(${i},'costPerKg',this.value)">
+            onchange="updateRecipeRow(${i},'costPerKg',this.value)">
         </div>
       </td>
       <td style="padding:8px 6px;text-align:center;font-weight:600;color:${costPerDay?'var(--gd)':'var(--tl)'};">
@@ -1867,7 +1961,7 @@ function renderCostCalc() {
       <td style="padding:8px 6px;text-align:center;">
         <input type="number" value="${r.daysPerWeek||''}" min="0" max="7" placeholder="7"
           style="font-size:13px;width:50px;text-align:center;"
-          oninput="updateRecipeRow(${i},'daysPerWeek',this.value)">
+          onchange="updateRecipeRow(${i},'daysPerWeek',this.value)">
       </td>
       <td style="padding:8px 6px;text-align:center;font-weight:600;color:${costWeek?'var(--gm)':'var(--tl)'};">
         ${costWeek ? '₹'+costWeek.toLocaleString('en-IN') : '—'}
@@ -1883,6 +1977,48 @@ function renderCostCalc() {
 
   document.getElementById('recipe-rows').innerHTML = rowsHTML;
 
+  // ── 7-DAY PROTEIN VALIDATION ──
+  const proteinRows    = rows.filter(r => r.section && r.section.includes('Protein'));
+  const assignedDays   = proteinRows.reduce((s, r) => s + (parseFloat(r.daysPerWeek)||0), 0);
+  const unassignedDays = 7 - assignedDays;
+
+  let validationHtml = '';
+  if (proteinRows.length > 0) {
+    const statusColor = assignedDays === 7 ? 'var(--gm)' : assignedDays > 7 ? 'var(--rd)' : 'var(--am)';
+    const statusIcon  = assignedDays === 7 ? '✅' : assignedDays > 7 ? '⚠️' : '⚠️';
+    const statusMsg   = assignedDays === 7
+      ? 'All 7 days covered — protein rotation is complete.'
+      : assignedDays > 7
+        ? `${assignedDays} days assigned — exceeds 7 days/week. Reduce by ${assignedDays - 7} day${assignedDays - 7 > 1 ? 's' : ''}.`
+        : `${assignedDays}/7 days assigned — ${unassignedDays} day${unassignedDays > 1 ? 's' : ''} unassigned. Add a protein or increase existing days to cover the full week.`;
+
+    const protSummary = proteinRows.map(r =>
+      `<span style="background:${assignedDays===7?'var(--gp)':unassignedDays>0?'var(--ap)':'var(--rp)'};border-radius:6px;padding:2px 8px;font-size:12px;color:var(--tx);">
+        ${r.name||'—'} × ${r.daysPerWeek||0}d
+      </span>`
+    ).join(' + ');
+
+    validationHtml = `
+      <div style="margin-top:10px;padding:10px 14px;border-radius:8px;border:1px solid ${assignedDays===7?'#a8d8bc':assignedDays>7?'#f5c2c2':'#f5d5a8'};background:${assignedDays===7?'var(--gp)':assignedDays>7?'var(--rp)':'var(--ap)'};">
+        <div style="font-size:12px;font-weight:600;color:${statusColor};margin-bottom:6px;">${statusIcon} Protein Rotation — ${assignedDays}/7 days</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${protSummary}${unassignedDays>0&&assignedDays<=7?`<span style="background:#fff3e0;border:1px dashed var(--am);border-radius:6px;padding:2px 8px;font-size:12px;color:var(--am);">+ ${unassignedDays} day${unassignedDays>1?'s':''} unassigned</span>`:''}</div>
+        <div style="font-size:12px;color:${statusColor};">${statusMsg}</div>
+      </div>`;
+  }
+
+  // Insert validation after the Add Ingredient button
+  const validationEl = document.getElementById('rotation-validation');
+  if (!validationEl) {
+    const addBtn = document.querySelector('#cost-calc-content .btn.bo.bsm.mt12');
+    if (addBtn) {
+      const div = document.createElement('div');
+      div.id = 'rotation-validation';
+      addBtn.insertAdjacentElement('afterend', div);
+    }
+  }
+  const rv = document.getElementById('rotation-validation');
+  if (rv) rv.innerHTML = validationHtml;
+
   // Totals footer
   document.getElementById('recipe-totals').innerHTML = `
     <tr style="background:var(--gd);color:white;">
@@ -1892,27 +2028,37 @@ function renderCostCalc() {
       <td style="border-radius:0 0 8px 0;"></td>
     </tr>`;
 
-  // Margin
+  // ── MARGIN vs ALL 3 PLANS ── (always show all 3, even if price not set)
   const tiers = ['basic','premium','elite'];
   const marginCards = tiers.map(t => {
     const planPrice = parseFloat(A.pricing[t]?.price) || 0;
-    if (!planPrice) return '';
-    const margin    = planPrice - totalMonthly;
-    const marginPct = planPrice ? Math.round(margin / planPrice * 100) : 0;
-    const col       = margin >= 0 ? 'var(--gm)' : 'var(--rd)';
     const label     = { basic:'🌿 Basic', premium:'⭐ Premium', elite:'👑 Elite' }[t];
-    return `<div style="flex:1;background:var(--cream);border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center;">
-      <div style="font-size:12px;font-weight:600;color:var(--tm);margin-bottom:4px;">${label}</div>
-      <div style="font-size:11px;color:var(--tl);margin-bottom:6px;">You charge ₹${planPrice.toLocaleString('en-IN')}/mo</div>
-      <div style="font-size:22px;font-weight:800;color:${col};">₹${Math.abs(margin).toLocaleString('en-IN')}</div>
-      <div style="font-size:12px;color:${col};margin-top:2px;">${margin>=0 ? marginPct+'% margin' : 'LOSS'}</div>
-    </div>`;
-  }).filter(Boolean).join('');
+    if (!planPrice) return `
+      <div style="flex:1;background:var(--cream);border:1px dashed var(--bd);border-radius:10px;padding:14px;text-align:center;opacity:.6;">
+        <div style="font-size:12px;font-weight:600;color:var(--tm);margin-bottom:4px;">${label}</div>
+        <div style="font-size:12px;color:var(--tl);">Price not set</div>
+        <div style="font-size:11px;color:var(--tl);margin-top:4px;">Go to Plan Configuration →</div>
+      </div>`;
+    const margin    = planPrice - totalMonthly;
+    const marginPct = Math.round(margin / planPrice * 100);
+    const col       = margin >= 0 ? 'var(--gm)' : 'var(--rd)';
+    return `
+      <div style="flex:1;background:white;border:1px solid ${margin>=0?'#a8d8bc':'#f5c2c2'};border-radius:10px;padding:14px;text-align:center;">
+        <div style="font-size:12px;font-weight:600;color:var(--tm);margin-bottom:4px;">${label}</div>
+        <div style="font-size:11px;color:var(--tl);margin-bottom:2px;">You charge</div>
+        <div style="font-size:13px;font-weight:600;color:var(--tm);margin-bottom:8px;">₹${planPrice.toLocaleString('en-IN')}/mo</div>
+        <div style="font-size:11px;color:var(--tl);">Ingredient cost</div>
+        <div style="font-size:13px;color:var(--tm);margin-bottom:8px;">₹${Math.round(totalMonthly).toLocaleString('en-IN')}/mo</div>
+        <div style="border-top:1px solid var(--bd);padding-top:8px;">
+          <div style="font-size:22px;font-weight:800;color:${col};">₹${Math.abs(margin).toLocaleString('en-IN')}</div>
+          <div style="font-size:12px;color:${col};margin-top:2px;">${margin>=0 ? marginPct+'% margin ✓' : 'LOSS ✗'}</div>
+        </div>
+      </div>`;
+  }).join('');
 
-  document.getElementById('cost-margin').innerHTML = marginCards
-    ? `<div style="font-size:11px;font-weight:600;color:var(--tl);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Your Margin vs Plan Prices</div>
-       <div style="display:flex;gap:10px;">${marginCards}</div>`
-    : `<div style="font-size:12px;color:var(--tl);">Set plan prices in the configuration below to see your margin.</div>`;
+  document.getElementById('cost-margin').innerHTML = `
+    <div style="font-size:11px;font-weight:600;color:var(--tl);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Margin vs Your Plans</div>
+    <div style="display:flex;gap:10px;">${marginCards}</div>`;
 }
 
 function updateRecipeRow(i, field, val) {
@@ -2173,7 +2319,151 @@ function printPlan(){
   pa.style.display = 'none';
 }
 
-// ========= INIT =========
+// ========= EDIT PLAN =========
+function openEditPlan() {
+  if (!curDog) return;
+  const dog     = curDog;
+  const calc    = calcDog(dog);
+  const ratios  = barfRatios(dog.diet);
+  const supps   = getSupplements(dog);
+  const custom  = (A.customPlans || {})[dog.id] || {};
+
+  // Pre-fill daily totals
+  document.getElementById('ep-totalG').value = custom.totalG || '';
+  activePill('ep-meals', custom.meals || calc.meals.toString());
+
+  // Breakdown rows — use custom if saved, else auto from ratios
+  const bdRows = custom.breakdown || ratios.map(r => ({
+    label: r.l,
+    g: Math.round(calc.totalG * r.p / 100),
+    color: r.c
+  }));
+  renderEpBreakdownRows(bdRows);
+
+  // Supplement rows — use custom if saved, else auto
+  const suppRows = custom.supplements || supps.map(s => ({ n: s.n, dose: s.dose, why: s.why }));
+  renderEpSuppRows(suppRows);
+
+  // Notes
+  document.getElementById('ep-vetnotes').value  = custom.vetNotes  || '';
+  document.getElementById('ep-dietnote').value  = custom.dietNote  || '';
+
+  document.getElementById('edit-plan-modal').classList.remove('hid');
+}
+
+function closeEditPlan() {
+  document.getElementById('edit-plan-modal').classList.add('hid');
+}
+
+function renderEpBreakdownRows(rows) {
+  document.getElementById('ep-breakdown-rows').innerHTML = rows.map((r, i) => `
+    <div style="display:grid;grid-template-columns:1fr 120px 32px;gap:8px;align-items:center;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${r.color||'#ccc'};flex-shrink:0;display:inline-block;"></span>
+        <input type="text" value="${r.label||''}" placeholder="Component" style="font-size:13px;flex:1;"
+          onchange="updateEpBd(${i},'label',this.value)">
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <input type="number" value="${r.g||''}" min="0" placeholder="g" style="font-size:13px;width:80px;"
+          onchange="updateEpBd(${i},'g',+this.value)">
+        <span style="font-size:12px;color:var(--tl);">g</span>
+      </div>
+      <button class="btn bdn bic bsm" onclick="removeEpBd(${i})">✕</button>
+    </div>`).join('');
+}
+
+function renderEpSuppRows(rows) {
+  document.getElementById('ep-supp-rows').innerHTML = rows.map((s, i) => `
+    <div style="border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--cream);">
+      <div style="display:grid;grid-template-columns:1fr 32px;gap:8px;align-items:start;">
+        <div>
+          <input type="text" value="${s.n||''}" placeholder="Supplement name" style="font-size:13px;width:100%;margin-bottom:6px;font-weight:600;"
+            onchange="updateEpSupp(${i},'n',this.value)">
+          <input type="text" value="${s.dose||''}" placeholder="Dosage" style="font-size:12px;width:100%;margin-bottom:4px;"
+            onchange="updateEpSupp(${i},'dose',this.value)">
+          <input type="text" value="${s.why||''}" placeholder="Rationale / evidence note" style="font-size:11px;width:100%;color:var(--gl);"
+            onchange="updateEpSupp(${i},'why',this.value)">
+        </div>
+        <button class="btn bdn bic bsm" onclick="removeEpSupp(${i})" style="margin-top:2px;">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+// These work directly on the modal DOM — collect data on save
+let _epBdRows   = [];
+let _epSuppRows = [];
+
+function updateEpBd(i, field, val) {
+  const rows = collectEpBd();
+  if (rows[i]) rows[i][field] = val;
+  renderEpBreakdownRows(rows);
+}
+function removeEpBd(i) {
+  const rows = collectEpBd();
+  rows.splice(i, 1);
+  renderEpBreakdownRows(rows);
+}
+function addEpBreakdownRow() {
+  const rows = collectEpBd();
+  rows.push({ label:'', g:'', color:'#cccccc' });
+  renderEpBreakdownRows(rows);
+}
+function collectEpBd() {
+  return Array.from(document.querySelectorAll('#ep-breakdown-rows > div')).map(row => {
+    const inputs = row.querySelectorAll('input[type=text],input[type=number]');
+    return { label: inputs[0]?.value||'', g: parseFloat(inputs[1]?.value)||0, color: row.querySelector('span')?.style.background||'#ccc' };
+  });
+}
+
+function updateEpSupp(i, field, val) {
+  const rows = collectEpSupps();
+  if (rows[i]) rows[i][field] = val;
+  renderEpSuppRows(rows);
+}
+function removeEpSupp(i) {
+  const rows = collectEpSupps();
+  rows.splice(i, 1);
+  renderEpSuppRows(rows);
+}
+function addEpSuppRow() {
+  const rows = collectEpSupps();
+  rows.push({ n:'', dose:'', why:'' });
+  renderEpSuppRows(rows);
+}
+function collectEpSupps() {
+  return Array.from(document.querySelectorAll('#ep-supp-rows > div')).map(row => {
+    const inputs = row.querySelectorAll('input[type=text]');
+    return { n: inputs[0]?.value||'', dose: inputs[1]?.value||'', why: inputs[2]?.value||'' };
+  });
+}
+
+function saveEditPlan() {
+  if (!curDog) return;
+  const totalG = parseInt(document.getElementById('ep-totalG').value) || null;
+  const meals  = document.getElementById('ep-meals').value || null;
+  const breakdown   = collectEpBd().filter(r => r.label);
+  const supplements = collectEpSupps().filter(s => s.n);
+  const vetNotes    = document.getElementById('ep-vetnotes').value.trim();
+  const dietNote    = document.getElementById('ep-dietnote').value.trim();
+
+  if (!A.customPlans) A.customPlans = {};
+  A.customPlans[curDog.id] = {
+    totalG, meals, breakdown, supplements,
+    vetNotes: vetNotes || null,
+    dietNote: dietNote || null
+  };
+  sv();
+  closeEditPlan();
+  renderDiet();
+}
+
+function resetCustomPlan() {
+  if (!curDog) return;
+  if (!confirm(`Remove all customisations for ${curDog.name} and revert to auto-calculated plan?`)) return;
+  if (A.customPlans) delete A.customPlans[curDog.id];
+  sv();
+  renderDiet();
+}
 (async function startup() {
   ld(); // load local first so UI isn't blank
   renderDogs(); updHdr(); loadPricing(); updatePricingPreview(); renderFeast(); setFFilter('all');
