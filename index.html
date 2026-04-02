@@ -372,6 +372,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 .paid-b { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; }
 .paid-b.pd { background: var(--gp); color: var(--gm); }
 .paid-b.up { background: var(--rp); color: var(--rd); }
+.paid-b.done { background: #e8eaed; color: #666; }
 
 /* UTILS */
 .mt4{margin-top:4px}.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mt20{margin-top:20px}.mt24{margin-top:24px}
@@ -681,14 +682,16 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
   </div>
   <div class="fb mb12" style="flex-wrap:wrap;gap:8px;">
     <div class="fc g8r">
+      <button class="btn bg bsm" id="ff-upcoming" onclick="setFFilter('upcoming')">Upcoming</button>
       <button class="btn bg bsm" id="ff-all" onclick="setFFilter('all')">All</button>
       <button class="btn bg bsm" id="ff-unpaid" onclick="setFFilter('unpaid')">Unpaid</button>
       <button class="btn bg bsm" id="ff-today" onclick="setFFilter('today')">Today</button>
+      <button class="btn bg bsm" id="ff-completed" onclick="setFFilter('completed')" style="opacity:.7;">✓ Completed</button>
     </div>
     <div id="feast-totals" style="font-size:13px;color:var(--tm);"></div>
   </div>
   <div id="feast-list"></div>
-  <div id="feast-empty" class="empty" style="display:none;"><div class="ei">🍗</div><p>No Weekend Feast orders yet</p></div>
+  <div id="feast-empty" class="empty" style="display:none;"><div class="ei">🍗</div><p>No orders here</p></div>
 </div>
 
 </div><!-- /body -->
@@ -1164,7 +1167,7 @@ if (localStorage.getItem('tbs_auth') === '1') {
 
 // ========= STATE =========
 let A = { dogs:[], pricing:{basic:{price:'',p:'Chicken'},premium:{price:'',p:'Chicken, Goat'},elite:{price:'',p:'Chicken, Goat, Fish'}}, deliveries:{}, renewals:{}, feast:[], ingredients:[], planFeatures:null, costCalc:{}, customPlans:{} };
-let curDog=null, curTier='basic', calY=new Date().getFullYear(), calM=new Date().getMonth(), curDelId=null, fFilter='all', feastEditId=null;
+let curDog=null, curTier='basic', calY=new Date().getFullYear(), calM=new Date().getMonth(), curDelId=null, fFilter='upcoming', feastEditId=null;
 
 // ========= FIREBASE =========
 let db = null;
@@ -2488,41 +2491,97 @@ function delFeast(id){
 }
 function setFFilter(f){
   fFilter=f;
-  ['all','unpaid','today'].forEach(k=>{
+  ['all','unpaid','today','upcoming','completed'].forEach(k=>{
     const b=document.getElementById('ff-'+k);
+    if(!b)return;
     b.style.background=k===f?'var(--gp)':'';
     b.style.color=k===f?'var(--gm)':'';
+    b.style.fontWeight=k===f?'600':'';
   });
   renderFeast();
 }
+
+function toggleCompleted(id){
+  const o=A.feast.find(x=>x.id===id);
+  if(o){ o.completed = !o.completed; sv(); renderFeast(); }
+}
+
 function renderFeast(){
   const todayStr=new Date().toISOString().split('T')[0];
-  let orders=[...A.feast];
-  if(fFilter==='unpaid')orders=orders.filter(o=>o.paid!=='paid');
-  if(fFilter==='today')orders=orders.filter(o=>o.date===todayStr);
+  const le=document.getElementById('feast-list');
+  const ee=document.getElementById('feast-empty');
+
+  // Totals always across all orders
   const tot=A.feast.reduce((s,o)=>s+(o.amt||0),0);
   const pd=A.feast.filter(o=>o.paid==='paid').reduce((s,o)=>s+(o.amt||0),0);
-  document.getElementById('feast-totals').innerHTML=`Total: ₹${fmt(tot)} · Paid: <span style="color:var(--gm)">₹${fmt(pd)}</span> · Unpaid: <span style="color:var(--rd)">₹${fmt(tot-pd)}</span>`;
-  const le=document.getElementById('feast-list'),ee=document.getElementById('feast-empty');
-  if(!orders.length){le.innerHTML='';ee.style.display='block';return;}
+  const upcoming=A.feast.filter(o=>!o.completed);
+  const completed=A.feast.filter(o=>o.completed);
+  document.getElementById('feast-totals').innerHTML=
+    `Total: ₹${fmt(tot)} · Paid: <span style="color:var(--gm)">₹${fmt(pd)}</span> · Unpaid: <span style="color:var(--rd)">₹${fmt(tot-pd)}</span>`+
+    ` · <span style="color:var(--tl)">${upcoming.length} upcoming · ${completed.length} completed</span>`;
+
+  // Filter
+  let orders=[...A.feast];
+  if(fFilter==='upcoming')  orders=orders.filter(o=>!o.completed);
+  if(fFilter==='completed') orders=orders.filter(o=>o.completed);
+  if(fFilter==='unpaid')    orders=orders.filter(o=>o.paid!=='paid'&&!o.completed);
+  if(fFilter==='today')     orders=orders.filter(o=>o.date===todayStr);
+
+  if(!orders.length){ le.innerHTML=''; ee.style.display='block'; return; }
   ee.style.display='none';
-  le.innerHTML=orders.map(o=>`
-    <div class="fo">
-      <div class="fav">🍗</div>
+
+  // For 'all' — split into two sections: upcoming then completed
+  if(fFilter==='all'){
+    const up=orders.filter(o=>!o.completed);
+    const done=orders.filter(o=>o.completed);
+    let html='';
+    if(up.length){
+      html+=`<div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">🟢 Upcoming (${up.length})</div>`;
+      html+=up.map(o=>feastCard(o)).join('');
+    }
+    if(done.length){
+      html+=`<div style="font-size:11px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px;">✓ Completed (${done.length})</div>`;
+      html+=done.map(o=>feastCard(o)).join('');
+    }
+    le.innerHTML=html;
+    return;
+  }
+
+  le.innerHTML=orders.map(o=>feastCard(o)).join('');
+}
+
+function feastCard(o){
+  const isCompleted = !!o.completed;
+  const cardStyle = isCompleted
+    ? 'opacity:.65;background:#f8f9fa;'
+    : '';
+  return `
+    <div class="fo" style="${cardStyle}">
+      <div class="fav" style="${isCompleted?'filter:grayscale(1)':''}">🍗</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-weight:600;font-size:14px;color:var(--gd)">${o.dog}</div>
+        <div style="font-weight:600;font-size:14px;color:${isCompleted?'var(--tl)':'var(--gd)'}">
+          ${o.dog}
+          ${isCompleted?'<span style="font-size:11px;background:#e8eaed;color:#666;border-radius:10px;padding:1px 7px;margin-left:6px;font-weight:500;">✓ Done</span>':''}
+        </div>
         <div style="font-size:12px;color:var(--tm);margin-top:2px;">${[o.own?'👤 '+o.own:'',o.ph?'📞 '+o.ph:'',o.addr?'📍 '+o.addr:''].filter(Boolean).join(' · ')}</div>
         <div style="font-size:12px;color:var(--tm);font-style:italic;margin-top:2px;">${o.meal||'No meal specified'}${o.date?' · '+o.date:''}${o.amt?' · ₹'+fmt(o.amt):''}</div>
         ${o.notes?`<div style="font-size:11px;color:var(--tl);margin-top:2px;">📝 ${o.notes}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
-        <button class="paid-b ${o.paid==='paid'?'pd':'up'}" onclick="togglePaid('${o.id}')">${o.paid==='paid'?'✓ Paid':'⚡ Unpaid'}</button>
+        ${!isCompleted
+          ? `<button class="paid-b ${o.paid==='paid'?'pd':'up'}" onclick="togglePaid('${o.id}')">${o.paid==='paid'?'✓ Paid':'⚡ Unpaid'}</button>`
+          : `<span class="paid-b done">${o.paid==='paid'?'✓ Paid':'Unpaid'}</span>`
+        }
         <div style="display:flex;gap:4px;">
+          ${!isCompleted
+            ? `<button class="btn bp bsm" onclick="toggleCompleted('${o.id}')" title="Mark as completed" style="font-size:11px;">✓ Done</button>`
+            : `<button class="btn bg bsm" onclick="toggleCompleted('${o.id}')" style="font-size:11px;">↺ Reopen</button>`
+          }
           <button class="btn bg bsm" onclick="openFeast('${o.id}')">✏</button>
           <button class="btn bdn bsm" onclick="delFeast('${o.id}')">✕</button>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
 }
 
 // ========= PDF PRINT =========
@@ -2722,7 +2781,7 @@ function resetCustomPlan() {
 }
 (async function startup() {
   ld(); // load local first so UI isn't blank
-  renderDogs(); updHdr(); loadPricing(); updatePricingPreview(); renderFeast(); setFFilter('all');
+  renderDogs(); updHdr(); loadPricing(); updatePricingPreview(); renderFeast(); setFFilter('upcoming');
   await initFirebase(); // then sync from Firebase (may update state)
   renderDogs(); updHdr(); loadPricing(); updatePricingPreview(); renderFeast(); populateSels();
 })();
