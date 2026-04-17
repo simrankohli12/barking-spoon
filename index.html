@@ -221,6 +221,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--cream); 
 .lock-btn:hover { background: var(--gd); }
 .lock-err { color: var(--rd); font-size: 12px; margin-top: 10px; min-height: 18px; }
 
+
 /* HEADER */
 .hdr { background: var(--gd); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
 .logo { display: flex; align-items: center; gap: 12px; }
@@ -419,8 +420,10 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
     <input class="lock-input" type="password" id="lock-pw" placeholder="Enter password" onkeydown="if(event.key==='Enter')unlock()">
     <button class="lock-btn" onclick="unlock()">Unlock →</button>
     <div class="lock-err" id="lock-err"></div>
+
   </div>
 </div>
+
 
 <header class="hdr">
   <div class="logo">
@@ -926,6 +929,14 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
           </div>
           <input type="hidden" id="m-diet" value="raw">
         </div>
+        <div class="fg">
+          <label class="fl">Client Type</label>
+          <div class="pg">
+            <button class="pb on" onclick="sp(this,'m-ctype','alacarte')">🛒 À la carte</button>
+            <button class="pb" onclick="sp(this,'m-ctype','subscription')">📦 Subscription</button>
+          </div>
+          <input type="hidden" id="m-ctype" value="alacarte">
+        </div>
         <div class="fg gfull">
           <label class="fl">Health Conditions</label>
           <div class="cc-grid" id="hc">
@@ -962,7 +973,10 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
       <button class="btn bg bsm" onclick="closeFeast()">✕</button>
     </div>
     <div class="mbdy">
-      <div class="fg"><label class="fl">Dog's Name *</label><input type="text" id="f-dog" placeholder="e.g. Simba"></div>
+      <div class="fg"><label class="fl">Dog's Name *</label>
+        <input type="text" id="f-dog" placeholder="e.g. Simba" list="f-dog-list" oninput="autoFillFeastOwner()">
+        <datalist id="f-dog-list"></datalist>
+      </div>
       <div class="g2 mt12">
         <div class="fg"><label class="fl">Owner Name</label><input type="text" id="f-own" placeholder="e.g. Rohit Mehta"></div>
         <div class="fg"><label class="fl">Phone</label><input type="tel" id="f-ph" placeholder="9820001234"></div>
@@ -1140,6 +1154,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
     </div>
     <div class="mft">
       <button class="btn bg" onclick="clearFirebase()" style="margin-right:auto;color:var(--rd);">🗑 Disconnect</button>
+
       <button class="btn bo" onclick="testFirebase()">Test Connection</button>
       <button class="btn bp" onclick="saveFbConfig()">💾 Save & Connect</button>
     </div>
@@ -1355,7 +1370,9 @@ function renderDogs(){
       <div class="dm">${d.breed||'Unknown breed'} · ${d.wt}kg${d.age?` · ${d.age} ${d.ageu}`:''}</div>
       <div class="dm">${d.owner?'👤 '+d.owner:''}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
-        <span class="tag tg">${d.ls}</span><span class="tag tg">${d.diet}</span>${cTags}
+        <span class="tag tg">${d.ls}</span><span class="tag tg">${d.diet}</span>
+        <span class="tag" style="${d.ctype==='subscription'?'background:#edf3fc;color:#2d6cb5;':'background:#f5edfb;color:#7b4fa6;'}">${d.ctype==='subscription'?'📦 Sub':'🛒 À la carte'}</span>
+        ${cTags}
         ${d.allrg?`<span class="tag tr">⚠ Allergy</span>`:''}
         ${hasPdf?`<span class="tag tb" style="cursor:pointer;" onclick="viewPdf('${d.id}',event)">📄 Diet Chart</span>`:''}
       </div>
@@ -1406,6 +1423,7 @@ function openDog(id=null){
     document.getElementById('m-notes').value=d.notes||'';
     activePill('m-sx',d.sx||'male');activePill('m-neu',d.neu||'yes');activePill('m-ls',d.ls||'puppy');
     activePill('m-act',d.act||'moderate');activePill('m-bcs',d.bcs||'ideal');activePill('m-meals',d.meals||'3');activePill('m-diet',d.diet||'raw');
+    activePill('m-ctype',d.ctype||'alacarte');
     (d.conds||[]).forEach(v=>{const cb=document.querySelector(`#hc input[value="${v}"]`);if(cb){cb.checked=true;cb.closest('.cc').classList.add('ck');}});
   }
 }
@@ -1440,7 +1458,8 @@ function saveDog(){
     diet:document.getElementById('m-diet').value,
     conds,
     allrg:document.getElementById('m-allrg').value.trim(),
-    notes:document.getElementById('m-notes').value.trim()
+    notes:document.getElementById('m-notes').value.trim(),
+    ctype:document.getElementById('m-ctype').value||'alacarte'
   };
   if(id){const i=A.dogs.findIndex(x=>x.id===id);if(i>=0)A.dogs[i]=dog;}
   else A.dogs.push(dog);
@@ -1465,7 +1484,10 @@ function goToDiet(id,e){
 function populateSels(){
   ['pd-sel','del-sel'].forEach(sid=>{
     const s=document.getElementById(sid),cur=s.value;
-    s.innerHTML='<option value="">— Select a dog —</option>'+A.dogs.map(d=>`<option value="${d.id}">${d.name}${d.owner?' ('+d.owner+')':''}</option>`).join('');
+    const dogs = sid==='del-sel'
+      ? A.dogs.filter(d=>d.ctype==='subscription')
+      : A.dogs;
+    s.innerHTML='<option value="">— Select a dog —</option>'+dogs.map(d=>`<option value="${d.id}">${d.name}${d.owner?' ('+d.owner+')':''}</option>`).join('');
     if(cur)s.value=cur;
   });
 }
@@ -2447,6 +2469,7 @@ function openFeast(id=null){
   feastEditId=id;
   document.getElementById('feast-modal').classList.remove('hid');
   ['f-dog','f-own','f-ph','f-addr','f-meal','f-notes'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('f-dog-list').innerHTML = A.dogs.map(d=>`<option value="${d.name}">`).join('');
   document.getElementById('f-amt').value='';
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   activePill('f-paid','unpaid');
@@ -2461,6 +2484,17 @@ function openFeast(id=null){
     document.getElementById('f-date').value=o.date||'';
     document.getElementById('f-notes').value=o.notes||'';
     activePill('f-paid',o.paid||'unpaid');
+  }
+}
+function autoFillFeastOwner(){
+  const name=document.getElementById('f-dog').value.trim();
+  const dl=document.getElementById('f-dog-list');
+  dl.innerHTML=A.dogs.map(d=>`<option value="${d.name}">`).join('');
+  const match=A.dogs.find(d=>d.name.toLowerCase()===name.toLowerCase());
+  if(match){
+    if(!document.getElementById('f-own').value)  document.getElementById('f-own').value =match.owner||'';
+    if(!document.getElementById('f-ph').value)   document.getElementById('f-ph').value  =match.phone||'';
+    if(!document.getElementById('f-addr').value) document.getElementById('f-addr').value=match.addr||'';
   }
 }
 function closeFeast(){document.getElementById('feast-modal').classList.add('hid');}
