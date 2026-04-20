@@ -179,33 +179,33 @@ const condMap = {
 @media print {
   body > *:not(#print-area) { display: none !important; }
   #print-area { display: block !important; font-family: 'DM Sans', sans-serif; }
-  .print-header { background: #1a3a2e; color: white; padding: 20px 24px; }
+  .print-header { background: #5c3d82; color: white; padding: 20px 24px; }
   .print-header h1 { font-family: 'DM Serif Display', serif; font-size: 24px; color: white; }
-  .print-header p { font-size: 12px; color: #9ec4b0; margin-top: 3px; }
+  .print-header p { font-size: 12px; color: #c8b8df; margin-top: 3px; }
   .print-section { margin-top: 22px; break-inside: avoid; }
-  .print-section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; color: #2d6649; font-weight: 600; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #dde8e2; }
-  .print-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f0f4f2; }
+  .print-section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; color: #5c3d82; font-weight: 600; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #e6ddf0; }
+  .print-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f5f0fb; }
   .print-metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
-  .print-metric { border: 1px solid #dde8e2; border-radius: 8px; padding: 10px; text-align: center; }
-  .print-metric .val { font-size: 20px; font-weight: 600; color: #2d6649; }
-  .print-metric .lbl { font-size: 10px; text-transform: uppercase; color: #8a9e92; margin-bottom: 3px; }
+  .print-metric { border: 1px solid #e6ddf0; border-radius: 8px; padding: 10px; text-align: center; }
+  .print-metric .val { font-size: 20px; font-weight: 600; color: #5c3d82; }
+  .print-metric .lbl { font-size: 10px; text-transform: uppercase; color: #a896b8; margin-bottom: 3px; }
   .print-supp { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .print-supp-item { border: 1px solid #dde8e2; border-radius: 6px; padding: 8px 10px; break-inside: avoid; }
-  .print-supp-item .sn { font-weight: 600; font-size: 12px; color: #1a3a2e; }
-  .print-supp-item .sd { font-size: 11px; color: #4a5e52; margin-top: 2px; }
-  .print-supp-item .sw { font-size: 11px; color: #4a9e72; }
-  .print-footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #dde8e2; text-align: center; font-size: 11px; color: #8a9e92; }
+  .print-supp-item { border: 1px solid #e6ddf0; border-radius: 6px; padding: 8px 10px; break-inside: avoid; }
+  .print-supp-item .sn { font-weight: 600; font-size: 12px; color: #2a1f35; }
+  .print-supp-item .sd { font-size: 11px; color: #6b5a7e; margin-top: 2px; }
+  .print-supp-item .sw { font-size: 11px; color: #9f81b8; }
+  .print-footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #e6ddf0; text-align: center; font-size: 11px; color: #a896b8; }
   @page { margin: 18mm; }
 }
 
 :root {
-  --gd: #1a3a2e; --gm: #2d6649; --gl: #4a9e72; --gp: #d4ede1;
-  --am: #c97b2e; --al: #e8923a; --ap: #fef3e2;
+  --gd: #5c3d82; --gm: #9f81b8; --gl: #b89fd0; --gp: #f0eaf8;
+  --am: #c97b2e; --al: #fbb359; --ap: #fff4bc;
   --rd: #c94040; --rp: #fef0f0;
-  --bl: #2d6cb5; --bp: #edf3fc;
-  --cream: #faf8f4; --white: #ffffff;
-  --tx: #1c2b22; --tm: #4a5e52; --tl: #8a9e92;
-  --bd: #dde8e2; --sh: 0 2px 12px rgba(26,58,46,.08);
+  --bl: #5b6abf; --bp: #edf0fc;
+  --cream: #fff9f3; --white: #ffffff;
+  --tx: #2a1f35; --tm: #6b5a7e; --tl: #a896b8;
+  --bd: #e6ddf0; --sh: 0 2px 12px rgba(92,61,130,.08);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--cream); color: var(--tx); min-height: 100vh; font-size: 14px; }
@@ -221,14 +221,13 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--cream); 
 .lock-btn:hover { background: var(--gd); }
 .lock-err { color: var(--rd); font-size: 12px; margin-top: 10px; min-height: 18px; }
 
-
 /* HEADER */
 .hdr { background: var(--gd); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
 .logo { display: flex; align-items: center; gap: 12px; }
 .logo-mark { width: 38px; height: 38px; background: var(--gl); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
 .logo h1 { font-family: 'DM Serif Display', serif; font-size: 20px; color: white; }
-.logo p { font-size: 11px; color: #9ec4b0; letter-spacing: .6px; text-transform: uppercase; }
-.hdr-stat { color: #9ec4b0; font-size: 12px; }
+.logo p { font-size: 11px; color: rgba(255,255,255,.55); letter-spacing: .6px; text-transform: uppercase; }
+.hdr-stat { color: rgba(255,255,255,.55); font-size: 12px; }
 
 /* TABS */
 .tabs { background: white; border-bottom: 1px solid var(--bd); display: flex; padding: 0 20px; overflow-x: auto; }
@@ -266,7 +265,7 @@ input[type=text], input[type=number], input[type=tel], input[type=date], select,
   transition: border-color .15s, box-shadow .15s;
 }
 input:focus, select:focus, textarea:focus {
-  outline: none; border-color: var(--gl); box-shadow: 0 0 0 3px rgba(74,158,114,.1); background: white;
+  outline: none; border-color: var(--gl); box-shadow: 0 0 0 3px rgba(159,129,184,.1); background: white;
 }
 textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 
@@ -289,7 +288,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 .bp:hover { background: var(--gd); }
 .bo { background: white; color: var(--gm); border-color: var(--gl); }
 .bo:hover { background: var(--gp); }
-.ba { background: var(--al); color: white; border-color: var(--al); }
+.ba { background: var(--al); color: #3a1f00; border-color: var(--al); }
 .ba:hover { background: var(--am); }
 .bg { background: transparent; color: var(--tm); border-color: var(--bd); }
 .bg:hover { background: var(--cream); }
@@ -314,7 +313,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 .tb { background: var(--bp); color: var(--bl); }
 
 /* MODAL */
-.mo { position: fixed; inset: 0; background: rgba(26,58,46,.42); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 20px; overflow-y: auto; }
+.mo { position: fixed; inset: 0; background: rgba(42,31,53,.42); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 20px; overflow-y: auto; }
 .mo.hid { display: none; }
 .mb { background: white; border-radius: 18px; width: 100%; max-width: 700px; box-shadow: 0 20px 60px rgba(0,0,0,.2); margin: auto; }
 .mh { padding: 20px 24px; border-bottom: 1px solid var(--bd); display: flex; justify-content: space-between; align-items: center; }
@@ -326,7 +325,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 .mgrid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
 .mc { background: var(--cream); border: 1px solid var(--bd); border-radius: 10px; padding: 14px; text-align: center; }
 .mc.pr { background: var(--gd); border-color: var(--gd); }
-.mc.pr .mlb { color: #9ec4b0; }
+.mc.pr .mlb { color: rgba(255,255,255,.6); }
 .mc.pr .mv { color: white; }
 .mlb { font-size: 10px; text-transform: uppercase; letter-spacing: .7px; color: var(--tl); margin-bottom: 4px; }
 .mv { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--gd); line-height: 1.2; }
@@ -383,24 +382,24 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 .div{border:none;border-top:1px solid var(--bd);margin:18px 0}
 .empty{text-align:center;padding:48px 20px;color:var(--tl)}
 .empty .ei{font-size:48px;margin-bottom:12px}
-.note{background:var(--ap);border:1px solid #f5d5a8;border-radius:8px;padding:10px 14px;font-size:12px;color:#8a5a1a;line-height:1.6;display:flex;gap:8px;align-items:flex-start}
+.note{background:var(--ap);border:1px solid #f0d87a;border-radius:8px;padding:10px 14px;font-size:12px;color:#7a5200;line-height:1.6;display:flex;gap:8px;align-items:flex-start}
 .ni{flex-shrink:0;font-size:14px}
 .sync-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
-.sync-ok { background: #4a9e72; }
-.sync-off { background: #c97b2e; }
-.sync-err { background: #c94040; }
-.sync-ing { background: #9ec4b0; animation: pulse 1s infinite; }
+.sync-ok { background: #6ac28c; }
+.sync-off { background: var(--al); }
+.sync-err { background: var(--rd); }
+.sync-ing { background: var(--gl); animation: pulse 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-.settings-btn { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: #9ec4b0; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all .15s; }
+.settings-btn { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: rgba(255,255,255,.7); border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all .15s; }
 .settings-btn:hover { background: rgba(255,255,255,.2); color: white; }
-.fb-field { background: #f0f4f2; border: 1px solid #dde8e2; border-radius: 8px; padding: 9px 12px; font-size: 12px; font-family: monospace; color: #1c2b22; width: 100%; margin-top: 5px; }
-.fb-field:focus { outline: none; border-color: #4a9e72; }
+.fb-field { background: var(--cream); border: 1px solid var(--bd); border-radius: 8px; padding: 9px 12px; font-size: 12px; font-family: monospace; color: var(--tx); width: 100%; margin-top: 5px; }
+.fb-field:focus { outline: none; border-color: var(--gl); }
 .step-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--gm); color: white; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-right: 8px; }
 .step-row { display: flex; align-items: flex-start; gap: 4px; margin: 8px 0; font-size: 13px; color: var(--tm); line-height: 1.6; }
 .fb-status-bar { padding: 10px 16px; border-radius: 10px; font-size: 13px; margin-top: 12px; display: flex; align-items: center; gap: 8px; }
-.fb-ok { background: var(--gp); color: var(--gm); border: 1px solid #a8d8bc; }
+.fb-ok { background: var(--gp); color: var(--gm); border: 1px solid var(--gl); }
 .fb-err { background: var(--rp); color: var(--rd); border: 1px solid #f5c2c2; }
-.fb-info { background: var(--bp); color: var(--bl); border: 1px solid #b8d0f0; }
+.fb-info { background: var(--bp); color: var(--bl); border: 1px solid #b8c0f0; }
 
 @media(max-width:700px){
   .g2,.g3,.g4,.mgrid,.pgrid{grid-template-columns:1fr}
@@ -420,10 +419,8 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
     <input class="lock-input" type="password" id="lock-pw" placeholder="Enter password" onkeydown="if(event.key==='Enter')unlock()">
     <button class="lock-btn" onclick="unlock()">Unlock →</button>
     <div class="lock-err" id="lock-err"></div>
-
   </div>
 </div>
-
 
 <header class="hdr">
   <div class="logo">
@@ -435,7 +432,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
   </div>
   <div class="hdr-stat" id="hdr-stat">0 dogs registered</div>
   <div style="display:flex;align-items:center;gap:10px;">
-    <div id="sync-status" style="display:flex;align-items:center;font-size:12px;color:#9ec4b0;">
+    <div id="sync-status" style="display:flex;align-items:center;font-size:12px;color:rgba(255,255,255,.6);">
       <span class="sync-dot sync-off" id="sync-dot"></span>
       <span id="sync-label">Local only</span>
     </div>
@@ -576,13 +573,13 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
       <div class="mgrid mb16" id="cost-metrics"></div>
 
       <!-- Recipe Card Note -->
-      <div id="recipe-note" style="background:var(--gp);border:1px solid #a8d8bc;border-radius:8px;padding:10px 14px;font-size:12px;color:var(--gm);margin-bottom:14px;"></div>
+      <div id="recipe-note" style="background:var(--pp);border:1px solid var(--pl);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--pm);margin-bottom:14px;"></div>
 
       <!-- RECIPE CARD TABLE -->
       <div style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
-            <tr style="background:var(--gd);color:white;">
+            <tr style="background:var(--pd);color:white;">
               <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.5px;border-radius:8px 0 0 0;">Ingredient</th>
               <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">Qty/Day (g)</th>
               <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;">₹/kg</th>
@@ -630,7 +627,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
         <!-- Cycle navigation -->
         <div class="fb mb12">
           <div>
-            <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--gd);" id="cal-title"></div>
+            <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--pd);" id="cal-title"></div>
             <div style="font-size:12px;color:var(--tm);" id="cal-count"></div>
           </div>
           <div class="fc g8r">
@@ -644,7 +641,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
         </div>
         <div class="cal-grid" id="cal-grid"></div>
         <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:var(--tm);">
-          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:var(--gm);display:inline-block;"></span>Delivered</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:var(--pd);display:inline-block;"></span>Delivered</span>
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:var(--cream);border:1px solid var(--bd);display:inline-block;"></span>Not delivered</span>
           <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:var(--bp);border:1px solid var(--bl);display:inline-block;"></span>Today</span>
         </div>
@@ -889,7 +886,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
             <button class="pb" onclick="sp(this,'m-ls','lactating')">Lactating</button>
           </div>
           <input type="hidden" id="m-ls" value="puppy">
-          <div id="ls-hint" style="font-size:11px;color:var(--gl);margin-top:4px;"></div>
+          <div id="ls-hint" style="font-size:11px;color:var(--pm);margin-top:4px;"></div>
         </div>
         <div class="fg">
           <label class="fl">Activity Level</label>
@@ -1034,12 +1031,12 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 
       <div id="import-upload-area" style="border:2px dashed var(--bd);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .15s;background:var(--cream);" onclick="document.getElementById('pdf-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--gl)'" ondragleave="this.style.borderColor='var(--bd)'" ondrop="handlePDFDrop(event)">
         <div style="font-size:36px;margin-bottom:8px;">📄</div>
-        <div style="font-weight:600;color:var(--gd);margin-bottom:4px;">Click to upload or drag & drop</div>
+        <div style="font-weight:600;color:var(--pd);margin-bottom:4px;">Click to upload or drag & drop</div>
         <div style="font-size:12px;color:var(--tl);">PDF files only · Your Canva diet chart format</div>
         <input type="file" id="pdf-file-input" accept=".pdf" style="display:none;" onchange="handlePDFSelect(event)">
       </div>
 
-      <div id="import-file-name" style="display:none;margin-top:12px;padding:10px 14px;background:var(--gp);border-radius:8px;font-size:13px;color:var(--gm);font-weight:500;"></div>
+      <div id="import-file-name" style="display:none;margin-top:12px;padding:10px 14px;background:var(--pp);border-radius:8px;font-size:13px;color:var(--pm);font-weight:500;"></div>
 
       <div id="import-status" style="display:none;margin-top:12px;" class="fb-status-bar fb-info">
         <span id="import-status-text"></span>
@@ -1136,8 +1133,8 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
     <div class="mbdy">
       <div class="note mb12"><span class="ni">ℹ️</span><span>Connect Firebase to save your data to the cloud — safe, automatic, accessible from any device. Takes about 5 minutes to set up.</span></div>
 
-      <div style="font-size:13px;font-weight:600;color:var(--gd);margin-bottom:8px;">How to set up (one-time)</div>
-      <div class="step-row"><span class="step-badge">1</span>Go to <a href="https://console.firebase.google.com" target="_blank" style="color:var(--gl);">console.firebase.google.com</a> → Create a project (name it anything)</div>
+      <div style="font-size:13px;font-weight:600;color:var(--pd);margin-bottom:8px;">How to set up (one-time)</div>
+      <div class="step-row"><span class="step-badge">1</span>Go to <a href="https://console.firebase.google.com" target="_blank" style="color:var(--pm);">console.firebase.google.com</a> → Create a project (name it anything)</div>
       <div class="step-row"><span class="step-badge">2</span>In your project → Build → Firestore Database → Create database → Start in test mode → Choose a region</div>
       <div class="step-row"><span class="step-badge">3</span>Go to Project Settings (gear icon) → Your apps → Add app → Web (‹/›) → Register app → Copy the config values below</div>
       <div class="step-row"><span class="step-badge">4</span>Paste each value into the fields below and tap Save</div>
@@ -1160,6 +1157,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
     </div>
   </div>
 </div>
+
 
 <script>
 // ========= PASSWORD LOCK =========
@@ -1591,8 +1589,8 @@ function renderDiet(){
       const flag = r.flagged ? ' ⚠' : '';
       if (r.topper) {
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px dashed var(--bd);margin-top:4px;">
-          <div style="color:var(--gl);font-size:12px;${flagStyle}">${r.cat} <span style="color:var(--tl);font-weight:400;">${r.ing}${flag}</span></div>
-          <div style="font-size:12px;color:var(--gl);font-weight:600;">${r.g}g</div>
+          <div style="color:var(--pm);font-size:12px;${flagStyle}">${r.cat} <span style="color:var(--tl);font-weight:400;">${r.ing}${flag}</span></div>
+          <div style="font-size:12px;color:var(--pm);font-weight:600;">${r.g}g</div>
         </div>`;
       }
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd);">
@@ -1600,14 +1598,14 @@ function renderDiet(){
           <div style="font-size:12px;color:var(--tl);">${r.cat}</div>
           <div style="font-size:13px;font-weight:500;color:var(--tx);">${r.ing}${flag}</div>
         </div>
-        <div style="font-size:16px;font-weight:700;color:var(--gd);margin-left:12px;">${r.g}g</div>
+        <div style="font-size:16px;font-weight:700;color:var(--pd);margin-left:12px;">${r.g}g</div>
       </div>`;
     }).join('');
 
     return `<div style="background:var(--cream);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div style="font-size:12px;font-weight:700;color:var(--am);text-transform:uppercase;letter-spacing:.7px;">${mealNames[i]}</div>
-        <div style="font-size:13px;font-weight:700;color:var(--gd);">${perMeal}g total</div>
+        <div style="font-size:13px;font-weight:700;color:var(--pd);">${perMeal}g total</div>
       </div>
       ${rows}
     </div>`;
@@ -1756,7 +1754,7 @@ function renderPlanConfigGrid() {
     return `
     <div class="pc${t.featured ? ' ft' : ''}" style="position:relative;">
       ${t.featured ? '<div class="pbadge">Most Popular</div>' : ''}
-      <div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--gd);margin-bottom:4px;">${t.emoji} ${t.label}</div>
+      <div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--pd);margin-bottom:4px;">${t.emoji} ${t.label}</div>
 
       <div class="fg mt8">
         <label class="fl">Plan tagline</label>
@@ -1769,7 +1767,7 @@ function renderPlanConfigGrid() {
         <div style="display:flex;align-items:center;gap:4px;">
           <span style="color:var(--tm);">₹</span>
           <input type="number" value="${p.price||''}" placeholder="e.g. 4500"
-            style="font-size:18px;font-weight:600;color:var(--gm);width:130px;"
+            style="font-size:18px;font-weight:600;color:var(--pm);width:130px;"
             onchange="updatePricingPrice('${t.k}',this.value)">
           <span style="font-size:12px;color:var(--tl);">/month</span>
         </div>
@@ -1895,7 +1893,7 @@ function updatePricingPreview() {
       ${t.featured ? '<div class="pbadge">Most Popular</div>' : ''}
       <div class="pname">${t.emoji} ${['Foundational','Balanced','Functional'][['basic','premium','elite'].indexOf(t.k)]}</div>
       <div class="ptag">${pf.tagline || ''}</div>
-      <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--gm);margin-bottom:12px;">
+      <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--pm);margin-bottom:12px;">
         ${price}<span style="font-size:13px;font-family:'DM Sans';color:var(--tl);font-weight:400;">/mo</span>
       </div>
       <ul class="pfeats">${feats.map(f => `<li>${f}</li>`).join('')}</ul>
@@ -2064,12 +2062,12 @@ function renderCostCalc() {
       ? ` <span style="font-weight:400;font-size:10px;color:var(--am);">${weeks*7} base + ${extraDayCount} extra = ${weeks*7+extraDayCount} days total</span>`
       : '';
 
-    rowsHTML += `<tr style="background:var(--gp);">
-      <td colspan="7" style="padding:8px 12px;font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.6px;">
+    rowsHTML += `<tr style="background:var(--pp);">
+      <td colspan="7" style="padding:8px 12px;font-size:11px;font-weight:700;color:var(--pm);text-transform:uppercase;letter-spacing:.6px;">
         ${section}${sectionNote}
         ${isExtraSection ? `<div style="font-size:10px;color:var(--tm);font-weight:400;text-transform:none;letter-spacing:0;margin-top:2px;">Days/Week column = Times this month (not weekly). These are your overflow days beyond ${weeks} weeks.</div>` : ''}
       </td>
-      <td style="padding:4px 6px;text-align:right;background:var(--gp);">
+      <td style="padding:4px 6px;text-align:right;background:var(--pp);">
         <button class="btn bo bsm" style="padding:3px 8px;font-size:11px;" onclick="addRecipeRow('${section}')">+ Add</button>
       </td>
     </tr>`;
@@ -2175,7 +2173,7 @@ function renderCostCalc() {
 
   // Totals footer
   document.getElementById('recipe-totals').innerHTML = `
-    <tr style="background:var(--gd);color:white;">
+    <tr style="background:var(--pd);color:white;">
       <td style="padding:12px;font-weight:700;font-size:14px;border-radius:0 0 0 8px;" colspan="5">Total — ${weeks} weeks + extra days</td>
       <td style="padding:12px;text-align:center;font-weight:700;font-size:14px;">₹${totalWeekly.toFixed(0)}/wk</td>
       <td style="padding:12px;text-align:center;font-weight:800;font-size:16px;">₹${totalMonthly.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')}</td>
@@ -2363,7 +2361,7 @@ function renderCal() {
     <div class="br"><div style="color:var(--tm)">Cycle</div><div style="font-weight:600">${viewingCycleIndex + 1} of ${currentCycleIndex + 1}</div></div>
     <div class="br"><div style="color:var(--tm)">Cycle period</div><div style="font-weight:600">${shortDate(cycleStart)} – ${shortDate(cycleEnd)}</div></div>
     <div class="br"><div style="color:var(--tm)">Day in cycle</div><div style="font-weight:600">${dayInCycle > 0 && viewingCycleIndex === currentCycleIndex ? 'Day ' + dayInCycle : '—'}</div></div>
-    <div class="br"><div style="color:var(--tm)">Delivered</div><div style="font-weight:600;color:var(--gm)">${deliveredCount}</div></div>
+    <div class="br"><div style="color:var(--tm)">Delivered</div><div style="font-weight:600;color:var(--pm)">${deliveredCount}</div></div>
     <div class="br"><div style="color:var(--tm)">Remaining</div><div style="font-weight:600;color:var(--rd)">${remaining}</div></div>
     <div class="br"><div style="color:var(--tm)">Completion</div><div style="font-weight:600">${pct}%</div></div>`;
 }
@@ -2391,7 +2389,7 @@ function renderCalendarMonth(dog, ren, today) {
   document.getElementById('cal-grid').innerHTML = html;
   document.getElementById('del-summary').innerHTML = `
     <div class="br"><div style="color:var(--tm)">Days in month</div><div style="font-weight:600">${days}</div></div>
-    <div class="br"><div style="color:var(--tm)">Delivered</div><div style="font-weight:600;color:var(--gm)">${dc}</div></div>
+    <div class="br"><div style="color:var(--tm)">Delivered</div><div style="font-weight:600;color:var(--pm)">${dc}</div></div>
     <div class="br"><div style="color:var(--tm)">Remaining</div><div style="font-weight:600;color:var(--rd)">${days-dc}</div></div>`;
 }
 
@@ -2404,14 +2402,14 @@ function renderClientInfo(dog, ren, today) {
     <div class="br"><div style="color:var(--tm)">Phone</div><div>${dog.phone||'—'}</div></div>
     <div class="br"><div style="color:var(--tm)">Address</div><div>${dog.addr||'—'}</div></div>
     <div class="br"><div style="color:var(--tm)">Plan</div><div>
-      <select onchange="setDogPlan('${dog.id}',this.value)" style="border:none;background:none;font-weight:600;color:var(--gm);padding:0;font-size:13px;cursor:pointer;">
+      <select onchange="setDogPlan('${dog.id}',this.value)" style="border:none;background:none;font-weight:600;color:var(--pm);padding:0;font-size:13px;cursor:pointer;">
         <option value="">—</option>
         <option value="basic"${ren.plan==='basic'?' selected':''}>🌱 Foundational</option>
         <option value="premium"${ren.plan==='premium'?' selected':''}>⚖️ Balanced</option>
         <option value="elite"${ren.plan==='elite'?' selected':''}>🎯 Functional</option>
       </select>
     </div></div>
-    <div class="br"><div style="color:var(--tm)">Monthly fee</div><div style="font-weight:600;color:var(--gm)">${price}</div></div>`;
+    <div class="br"><div style="color:var(--tm)">Monthly fee</div><div style="font-weight:600;color:var(--pm)">${price}</div></div>`;
 
   if(ren.start) document.getElementById('pln-start').value = ren.start;
   if(ren.end)   document.getElementById('pln-end').value   = ren.end;
@@ -2551,7 +2549,7 @@ function renderFeast(){
   const upcoming=A.feast.filter(o=>!o.completed);
   const completed=A.feast.filter(o=>o.completed);
   document.getElementById('feast-totals').innerHTML=
-    `Total: ₹${fmt(tot)} · Paid: <span style="color:var(--gm)">₹${fmt(pd)}</span> · Unpaid: <span style="color:var(--rd)">₹${fmt(tot-pd)}</span>`+
+    `Total: ₹${fmt(tot)} · Paid: <span style="color:var(--pm)">₹${fmt(pd)}</span> · Unpaid: <span style="color:var(--rd)">₹${fmt(tot-pd)}</span>`+
     ` · <span style="color:var(--tl)">${upcoming.length} upcoming · ${completed.length} completed</span>`;
 
   // Filter
@@ -2570,7 +2568,7 @@ function renderFeast(){
     const done=orders.filter(o=>o.completed);
     let html='';
     if(up.length){
-      html+=`<div style="font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">🟢 Upcoming (${up.length})</div>`;
+      html+=`<div style="font-size:11px;font-weight:700;color:var(--pm);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">🟢 Upcoming (${up.length})</div>`;
       html+=up.map(o=>feastCard(o)).join('');
     }
     if(done.length){
@@ -2730,7 +2728,7 @@ function renderEpSuppRows(rows) {
             onchange="updateEpSupp(${i},'n',this.value)">
           <input type="text" value="${s.dose||''}" placeholder="Dosage" style="font-size:12px;width:100%;margin-bottom:4px;"
             onchange="updateEpSupp(${i},'dose',this.value)">
-          <input type="text" value="${s.why||''}" placeholder="Rationale / evidence note" style="font-size:11px;width:100%;color:var(--gl);"
+          <input type="text" value="${s.why||''}" placeholder="Rationale / evidence note" style="font-size:11px;width:100%;color:var(--pm);"
             onchange="updateEpSupp(${i},'why',this.value)">
         </div>
         <button class="btn bdn bic bsm" onclick="removeEpSupp(${i})" style="margin-top:2px;">✕</button>
@@ -2820,5 +2818,7 @@ function resetCustomPlan() {
   renderDogs(); updHdr(); loadPricing(); updatePricingPreview(); renderFeast(); populateSels();
 })();
 </script>
+
+
 </body>
 </html>
