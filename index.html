@@ -364,7 +364,7 @@ textarea { resize: vertical; min-height: 68px; line-height: 1.5; }
 .cd.em { background: none; cursor: default; }
 .cd.dv { background: var(--gm); color: white; font-weight: 600; }
 .cd.td { border-color: var(--gl); font-weight: 600; color: var(--gm); }
-.cd.ft { color: var(--tl); opacity: .6; cursor: default; }
+.cd.ft { color: var(--tl); opacity: .7; }
 
 /* FEAST */
 .fo { background: white; border: 1px solid var(--bd); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
@@ -2348,7 +2348,7 @@ function renderCal() {
       ? `<span style="font-size:9px;display:block;line-height:1;">${months[d.getMonth()]}</span>${d.getDate()}`
       : d.getDate();
 
-    const onclick = isFuture ? '' : `onclick="toggleDel('${dKey}')"`;
+    const onclick = `onclick="toggleDel('${dKey}')"`;
     html += `<div class="${cls}" ${onclick} title="Day ${i+1} — ${shortDate(d)}">${label}${isDel?' ✓':''}</div>`;
   }
 
@@ -2386,7 +2386,7 @@ function renderCalendarMonth(dog, ren, today) {
     const isDv=delivs[d];
     let cls='cd';
     if(isDv)cls+=' dv';else if(isT)cls+=' td';else if(isFt)cls+=' ft';
-    html+=`<div class="${cls}" onclick="${isFt?'':` toggleDelLegacy(${d},'${mKey}')`}">${d}${isDv?' ✓':''}</div>`;
+    html+=`<div class="${cls}" onclick="toggleDelLegacy(${d},'${mKey}')">${d}${isDv?' ✓':''}</div>`;
   }
   document.getElementById('cal-grid').innerHTML = html;
   document.getElementById('del-summary').innerHTML = `
